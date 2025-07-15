@@ -6,10 +6,52 @@ const { webappMCP } = require('@webappmcp/middleware');
 const app = express();
 const port = process.env.PORT || 4834;
 
+// Add request logging middleware at the very beginning
+app.use((req, res, next) => {
+  console.log(`[Express] ${new Date().toISOString()} ${req.method} ${req.path}`);
+  console.log(`[Express] Headers:`, JSON.stringify(req.headers, null, 2));
+  console.log(`[Express] Query:`, req.query);
+  next();
+});
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+let transport = 'stdio'; // Default to stdio
+
+if (args.includes('--stdio')) {
+  if (args.includes('--sse') || args.includes('--socket')) {
+    console.error('Error: Cannot use multiple transport flags');
+    process.exit(1);
+  }
+  transport = 'stdio';
+} else if (args.includes('--sse')) {
+  if (args.includes('--socket')) {
+    console.error('Error: Cannot use multiple transport flags');
+    process.exit(1);
+  }
+  transport = 'sse';
+} else if (args.includes('--socket')) {
+  transport = 'socket';
+} else if (args.includes('--none')) {
+  transport = 'none';
+}
+
 // Middleware - exclude MCP SSE endpoint from body parsing
+// Add comprehensive request logging
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${req.method} ${req.url}`);
+  console.log(`[${timestamp}] Headers:`, JSON.stringify(req.headers, null, 2));
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log(`[${timestamp}] Body:`, JSON.stringify(req.body, null, 2));
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   // Skip body parsing for MCP SSE endpoint
   if (req.path === '/mcp/sse') {
+    console.log(`[SSE] Detected SSE endpoint request, skipping body parser`);
     return next();
   }
   bodyParser.json()(req, res, next);
@@ -21,8 +63,7 @@ app.get('/webappmcp-client.js', (req, res) => {
   res.sendFile(path.join(__dirname, '../../packages/client/dist/webappmcp-client.min.js'));
 });
 
-// Configure WebApp MCP middleware
-// Both SSE and stdio transports are always available
+// Configure WebApp MCP middleware with selected transport
 app.use(webappMCP({
   wsPort: 4835,
   authentication: {
@@ -35,7 +76,8 @@ app.use(webappMCP({
     screenshot: true,
     state: true
   },
-  mcpEndpointPath: '/mcp/sse'  // SSE endpoint path
+  mcpEndpointPath: '/mcp/sse',  // SSE endpoint path
+  transport: transport  // Use the selected transport
 }));
 
 // In-memory todos storage
@@ -106,11 +148,33 @@ app.post('/api/todos/clear-completed', (req, res) => {
 
 // Start the Express server
 app.listen(port, () => {
-  console.log(`Todos app listening at http://localhost:${port}`);
-  console.log(`WebApp MCP WebSocket server at ws://localhost:4835`);
-  console.log(`MCP SSE endpoint at http://localhost:${port}/mcp/sse`);
-  console.log(`Auth token: ${process.env.MCP_AUTH_TOKEN || 'demo-token'}`);
-  console.log('\nBoth SSE and stdio MCP transports are running!');
-  console.log('- SSE: Configure your AI assistant to use the SSE endpoint above');
-  console.log('- Stdio: Run with --mcp-stdio flag for Claude CLI integration');
+  if (transport === 'stdio') {
+    // In stdio mode, use stderr for logging since stdout is used for MCP protocol
+    console.error(`Todos app listening at http://localhost:${port}`);
+    console.error(`WebApp MCP WebSocket server at ws://localhost:4835`);
+    console.error(`MCP transport: stdio (for Claude CLI integration)`);
+    console.error(`Auth token: ${process.env.MCP_AUTH_TOKEN || 'demo-token'}`);
+  } else {
+    console.log(`Todos app listening at http://localhost:${port}`);
+    console.log(`WebApp MCP WebSocket server at ws://localhost:4835`);
+    
+    if (transport === 'sse') {
+      console.log(`MCP SSE endpoint at http://localhost:${port}/mcp/sse`);
+      console.log(`MCP transport: SSE`);
+    } else if (transport === 'socket') {
+      const socketPath = process.env.MCP_SOCKET_PATH || '/tmp/webapp-mcp.sock';
+      console.log(`MCP Unix socket at ${socketPath}`);
+      console.log(`MCP transport: Unix Socket`);
+      console.log(`Configure Claude CLI with: claude mcp add webapp-socket "socat - UNIX-CONNECT:${socketPath}"`);
+    } else if (transport === 'none') {
+      console.log(`MCP transport: none (WebSocket only)`);
+    }
+    
+    console.log(`Auth token: ${process.env.MCP_AUTH_TOKEN || 'demo-token'}`);
+    console.log('\nUsage:');
+    console.log('  --stdio : Enable stdio MCP transport (for Claude CLI)');
+    console.log('  --sse   : Enable SSE MCP transport (default)');
+    console.log('  --socket: Enable Unix socket MCP transport');
+    console.log('  --none  : Disable MCP transport (WebSocket only)');
+  }
 });

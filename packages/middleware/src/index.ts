@@ -5,6 +5,7 @@ import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import { IntegratedMCPServer } from './mcp-server.js';
 import { MCPSSEServer } from './mcp-sse-server.js';
+import { MCPSocketServer } from './mcp-socket-server.js';
 
 export interface WebAppMCPConfig {
   wsPort?: number;
@@ -21,6 +22,8 @@ export interface WebAppMCPConfig {
   };
   cors?: cors.CorsOptions;
   mcpEndpointPath?: string;
+  transport?: 'sse' | 'stdio' | 'socket' | 'none';  // MCP transport mode (defaults to 'sse')
+  socketPath?: string;  // Unix socket path (only used when transport is 'socket')
 }
 
 export interface ClientInfo {
@@ -34,6 +37,8 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
   const {
     wsPort = 4835,
     wsHost = '0.0.0.0',  // Bind to all interfaces by default
+    transport = 'sse',  // Default to sse transport
+    socketPath = process.env.MCP_SOCKET_PATH || '/tmp/webapp-mcp.sock',
     authentication = { enabled: false },
     permissions = {
       read: true,
@@ -55,59 +60,59 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
   // Create WebSocket server immediately, not in middleware
   const server = createServer();
   wss = new WebSocketServer({ server });
-  
+
   let isListening = false;
 
   wss.on('connection', (ws, request) => {
-        const clientId = uuidv4();
+    const clientId = uuidv4();
 
-        if (authentication.enabled && authentication.token) {
-          // Check Authorization header first
-          const authHeader = request.headers.authorization;
-          
-          // Also check URL parameter as fallback (browsers can't set WebSocket headers)
-          const url = new URL(request.url || '', `http://localhost`);
-          const tokenParam = url.searchParams.get('token');
-          
-          const providedToken = authHeader?.replace('Bearer ', '') || tokenParam;
-          
-          if (!providedToken || providedToken !== authentication.token) {
-            ws.close(1008, 'Unauthorized');
-            return;
-          }
-        }
+    if (authentication.enabled && authentication.token) {
+      // Check Authorization header first
+      const authHeader = request.headers.authorization;
 
-        const client: ClientInfo = {
-          id: clientId,
-          ws,
-          url: request.url || '',
-          connectedAt: new Date(),
-        };
+      // Also check URL parameter as fallback (browsers can't set WebSocket headers)
+      const url = new URL(request.url || '', `http://localhost`);
+      const tokenParam = url.searchParams.get('token');
 
-        clients.set(clientId, client);
-        console.log(`WebApp MCP client connected: ${clientId}`);
+      const providedToken = authHeader?.replace('Bearer ', '') || tokenParam;
 
-        ws.on('message', async (data) => {
-          try {
-            const message = JSON.parse(data.toString());
-            await handleClientMessage(client, message, permissions, clients);
-          } catch (error) {
-            console.error('Error handling WebSocket message:', error);
-            ws.send(JSON.stringify({
-              type: 'error',
-              error: error instanceof Error ? error.message : 'Unknown error',
-            }));
-          }
-        });
+      if (!providedToken || providedToken !== authentication.token) {
+        ws.close(1008, 'Unauthorized');
+        return;
+      }
+    }
 
-        ws.on('close', () => {
-          clients.delete(clientId);
-          console.log(`WebApp MCP client disconnected: ${clientId}`);
-        });
+    const client: ClientInfo = {
+      id: clientId,
+      ws,
+      url: request.url || '',
+      connectedAt: new Date(),
+    };
 
-        ws.on('error', (error) => {
-          console.error(`WebSocket error for client ${clientId}:`, error);
-        });
+    clients.set(clientId, client);
+    console.log(`WebApp MCP client connected: ${clientId}`);
+
+    ws.on('message', async (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        await handleClientMessage(client, message, permissions, clients);
+      } catch (error) {
+        console.error('Error handling WebSocket message:', error);
+        ws.send(JSON.stringify({
+          type: 'error',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }));
+      }
+    });
+
+    ws.on('close', () => {
+      clients.delete(clientId);
+      console.log(`WebApp MCP client disconnected: ${clientId}`);
+    });
+
+    ws.on('error', (error) => {
+      console.error(`WebSocket error for client ${clientId}:`, error);
+    });
 
     ws.send(JSON.stringify({
       type: 'connected',
@@ -121,40 +126,74 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
     server.listen(wsPort, wsHost, async () => {
       isListening = true;
       console.log(`WebApp MCP WebSocket server listening on ${wsHost}:${wsPort}`);
-      
-      // Always start stdio MCP server
-      console.log('Starting integrated stdio MCP server...');
-      const mcpServer = new IntegratedMCPServer({
-        wsUrl: `ws://${wsHost === '0.0.0.0' ? 'localhost' : wsHost}:${wsPort}`,
-        authToken: authentication.token,
-      });
-      
-      try {
-        await mcpServer.start();
-      } catch (error) {
-        console.error('Failed to start stdio MCP server:', error);
-        // Don't fail the whole server if stdio fails
-      }
 
-      // Always initialize SSE MCP server
-      console.log('Initializing MCP SSE server...');
-      mcpSSEServer = new MCPSSEServer({
-        wsUrl: `ws://${wsHost === '0.0.0.0' ? 'localhost' : wsHost}:${wsPort}`,
-        authToken: authentication.token,
-        getClients: () => {
-          return Array.from(clients.entries()).map(([id, client]) => ({
-            id,
-            url: client.url,
-            connectedAt: client.connectedAt,
-            type: client.url === 'mcp-server' ? 'mcp-server' : 'browser',
-          }));
-        },
-      });
-      
-      try {
-        await mcpSSEServer.initialize();
-      } catch (error) {
-        console.error('Failed to initialize MCP SSE server:', error);
+      // Start MCP transport based on configuration
+      if (transport === 'stdio') {
+        console.log('Starting integrated stdio MCP server...');
+        const mcpServer = new IntegratedMCPServer({
+          wsUrl: `ws://${wsHost === '0.0.0.0' ? 'localhost' : wsHost}:${wsPort}`,
+          authToken: authentication.token,
+        });
+
+        try {
+          await mcpServer.start();
+          console.log('Stdio MCP transport started successfully');
+        } catch (error) {
+          console.error('Failed to start stdio MCP server:', error);
+          process.exit(1); // Exit on stdio failure since it's the only transport
+        }
+      } else if (transport === 'sse') {
+        console.log('=== INITIALIZING MCP SSE SERVER ===');
+        console.log(`SSE endpoint will be available at: ${mcpEndpointPath}`);
+        console.log(`WebSocket URL: ws://${wsHost === '0.0.0.0' ? 'localhost' : wsHost}:${wsPort}`);
+        console.log(`Auth token: ${authentication.token}`);
+        
+        mcpSSEServer = new MCPSSEServer({
+          wsUrl: `ws://${wsHost === '0.0.0.0' ? 'localhost' : wsHost}:${wsPort}`,
+          authToken: authentication.token,
+          getClients: () => {
+            return Array.from(clients.entries()).map(([id, client]) => ({
+              id,
+              url: client.url,
+              connectedAt: client.connectedAt,
+              type: client.url === 'mcp-server' ? 'mcp-server' : 'browser',
+            }));
+          },
+        });
+
+        try {
+          await mcpSSEServer.initialize();
+          console.log('✅ SSE MCP transport initialized successfully');
+          console.log(`✅ SSE endpoint registered at: ${mcpEndpointPath}`);
+          console.log('✅ Ready to accept Claude CLI connections');
+        } catch (error) {
+          console.error('❌ Failed to initialize MCP SSE server:', error);
+        }
+      } else if (transport === 'socket') {
+        console.log('Starting MCP Unix socket server...');
+        const mcpSocketServer = new MCPSocketServer({
+          socketPath: socketPath,
+          wsUrl: `ws://${wsHost === '0.0.0.0' ? 'localhost' : wsHost}:${wsPort}`,
+          authToken: authentication.token,
+          getClients: () => {
+            return Array.from(clients.entries()).map(([id, client]) => ({
+              id,
+              url: client.url,
+              connectedAt: client.connectedAt,
+              type: client.url === 'mcp-server' ? 'mcp-server' : 'browser',
+            }));
+          },
+        });
+        
+        try {
+          await mcpSocketServer.start();
+          console.log('Unix socket MCP transport started successfully');
+        } catch (error) {
+          console.error('Failed to start MCP socket server:', error);
+          process.exit(1); // Exit on socket failure since it's the only transport
+        }
+      } else if (transport === 'none') {
+        console.log('No MCP transport configured');
       }
     }).on('error', (err: any) => {
       if (err.code === 'EADDRINUSE') {
@@ -173,7 +212,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
   {
     executeToolFunction = async (toolName: string, args: any, clientId?: string) => {
       let targetClient: ClientInfo | undefined;
-      
+
       if (clientId) {
         // Use specific client if provided
         targetClient = clients.get(clientId);
@@ -201,7 +240,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           if (message.requestId === requestId) {
             clearTimeout(timeout);
             targetClient.ws.off('message', messageHandler);
-            
+
             if (message.error) {
               reject(new Error(message.error));
             } else {
@@ -211,7 +250,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
         };
 
         targetClient.ws.on('message', messageHandler);
-        
+
         targetClient.ws.send(JSON.stringify({
           type: 'execute_tool',
           requestId,
@@ -245,10 +284,16 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
 
     // MCP SSE endpoint
     if (req.path === mcpEndpointPath) {
+      console.log(`[Middleware] Request to MCP SSE endpoint: ${req.method} ${req.path}`);
+      console.log(`[Middleware] Transport mode: ${transport}`);
+      console.log(`[Middleware] SSE Server initialized: ${mcpSSEServer ? 'Yes' : 'No'}`);
+      
       if (!mcpSSEServer) {
+        console.log(`[Middleware] ERROR: MCP SSE server not initialized`);
         return res.status(503).json({ error: 'MCP SSE server not initialized' });
       }
 
+      console.log(`[Middleware] Forwarding request to SSE server`);
       return mcpSSEServer.handleSSERequest(req, res);
     }
 
@@ -256,7 +301,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
     if (req.path.startsWith('/__webappmcp/tools/') && req.method === 'POST') {
       const toolName = req.path.replace('/__webappmcp/tools/', '');
       const { clientId, ...args } = req.body;
-      
+
       if (!executeToolFunction) {
         return res.status(503).json({ error: 'MCP server not available' });
       }
@@ -270,8 +315,8 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           res.json({ success: true, result });
         })
         .catch(error => {
-          res.status(500).json({ 
-            error: error instanceof Error ? error.message : 'Unknown error' 
+          res.status(500).json({
+            error: error instanceof Error ? error.message : 'Unknown error'
           });
         });
       return;
@@ -281,7 +326,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
     if (req.path === '/__webappmcp/tools' && req.method === 'GET') {
       const tools = [
         'dom_query',
-        'dom_get_properties', 
+        'dom_get_properties',
         'dom_get_text',
         'dom_get_html',
         'interaction_click',

@@ -197,7 +197,23 @@ export class MCPSSEServer {
   }
 
   async handleSSERequest(req: Request, res: Response) {
-    console.log(`[MCP SSE] Handling ${req.method} request to ${req.path}`);
+    const timestamp = new Date().toISOString();
+    console.log(`\n[${timestamp}] [MCP SSE] ====== INCOMING REQUEST ======`);
+    console.log(`[${timestamp}] [MCP SSE] ${req.method} ${req.url}`);
+    console.log(`[${timestamp}] [MCP SSE] Path: ${req.path}`);
+    console.log(`[${timestamp}] [MCP SSE] Query:`, req.query);
+    console.log(`[${timestamp}] [MCP SSE] Headers:`, JSON.stringify(req.headers, null, 2));
+    console.log(`[${timestamp}] [MCP SSE] User-Agent: ${req.headers['user-agent']}`);
+    console.log(`[${timestamp}] [MCP SSE] Content-Type: ${req.headers['content-type']}`);
+    console.log(`[${timestamp}] [MCP SSE] Accept: ${req.headers['accept']}`);
+    
+    // Log authorization header specifically
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      console.log(`[${timestamp}] [MCP SSE] Authorization header present: ${authHeader}`);
+    } else {
+      console.log(`[MCP SSE] No authorization header found`);
+    }
     
     try {
       if (req.method === 'GET') {
@@ -222,7 +238,13 @@ export class MCPSSEServer {
         
         // Connect the server to the SSE transport (this automatically calls start())
         console.log(`[MCP SSE] Connecting server to SSE transport`);
-        await server.connect(sseTransport);
+        try {
+          await server.connect(sseTransport);
+          console.log(`[MCP SSE] Successfully connected server to transport`);
+        } catch (connectError) {
+          console.error(`[MCP SSE] ERROR connecting server to transport:`, connectError);
+          throw connectError;
+        }
         
         // Store the transport with its session ID
         this.sseTransports.set(sseTransport.sessionId, sseTransport);
