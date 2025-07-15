@@ -237,6 +237,15 @@ npm test
 npm run dev
 ```
 
+## VS Code Integration
+
+This project includes full VS Code support for easy development and debugging. See [VS_CODE_SETUP.md](VS_CODE_SETUP.md) for details.
+
+Quick start with VS Code:
+1. Open the project in VS Code
+2. Press `F5` to launch both the demo app and MCP server
+3. Visit http://localhost:3456 to see the demo
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
