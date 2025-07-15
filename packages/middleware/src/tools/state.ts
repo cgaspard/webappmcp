@@ -58,4 +58,12 @@ export const stateTools: ToolDefinition[] = [
       },
     },
   },
+  {
+    name: 'webapp_list_clients',
+    description: 'List all connected browser clients/sessions',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
 ];

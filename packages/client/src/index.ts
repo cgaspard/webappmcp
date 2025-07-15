@@ -1,11 +1,11 @@
-export interface WebAppMCPClientConfig {
+interface WebAppMCPClientConfig {
   serverUrl: string;
   authToken?: string;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
 }
 
-export class WebAppMCPClient {
+class WebAppMCPClient {
   private ws: WebSocket | null = null;
   private config: WebAppMCPClientConfig;
   private reconnectAttempts = 0;
@@ -34,6 +34,14 @@ export class WebAppMCPClient {
 
     try {
       const url = new URL(this.config.serverUrl);
+      const headers: Record<string, string> = {};
+      
+      if (this.config.authToken) {
+        headers['Authorization'] = `Bearer ${this.config.authToken}`;
+      }
+
+      // WebSocket in browser doesn't support custom headers directly
+      // So we'll pass the token in the URL
       if (this.config.authToken) {
         url.searchParams.set('token', this.config.authToken);
       }
@@ -120,6 +128,7 @@ export class WebAppMCPClient {
 
   private handleMessage(message: any): void {
     const { type, requestId, tool, args } = message;
+    console.log('[WebApp Client] Received message:', JSON.stringify(message));
 
     if (type === 'connected') {
       console.log('WebApp MCP client registered:', message.clientId);
@@ -127,6 +136,7 @@ export class WebAppMCPClient {
     }
 
     if (type === 'execute_tool') {
+      console.log(`[WebApp Client] Executing tool: ${tool} with requestId: ${requestId}`);
       this.executeToolHandler(requestId, tool, args);
       return;
     }
@@ -142,6 +152,8 @@ export class WebAppMCPClient {
     toolName: string,
     args: any
   ): Promise<void> {
+    console.log(`[WebApp Client] Executing tool handler for ${toolName}`);
+    console.log(`[WebApp Client] Tool args:`, JSON.stringify(args));
     try {
       let result: any;
 
@@ -189,12 +201,14 @@ export class WebAppMCPClient {
           throw new Error(`Unknown tool: ${toolName}`);
       }
 
+      console.log(`[WebApp Client] Tool execution successful, sending response`);
       this.sendMessage({
         type: 'tool_response',
         requestId,
         result,
       });
     } catch (error) {
+      console.error(`[WebApp Client] Tool execution failed:`, error);
       this.sendMessage({
         type: 'tool_response',
         requestId,
@@ -404,11 +418,94 @@ export class WebAppMCPClient {
   }
 
   private async captureScreenshot(args: any): Promise<any> {
-    throw new Error('Screenshot capture requires server-side implementation');
+    const { fullPage = true, format = 'png' } = args;
+    
+    try {
+      // For now, we'll use a simple approach that captures the visible viewport
+      // In a production environment, you'd want to use html2canvas or similar
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        throw new Error('Failed to create canvas context');
+      }
+
+      // Get dimensions
+      const width = fullPage ? document.documentElement.scrollWidth : window.innerWidth;
+      const height = fullPage ? document.documentElement.scrollHeight : window.innerHeight;
+      
+      canvas.width = width;
+      canvas.height = height;
+
+      // Draw a placeholder for now
+      // In production, you'd use html2canvas or similar library
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = '#333';
+      ctx.font = '20px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Screenshot placeholder - implement with html2canvas', width/2, height/2);
+      
+      // Convert to data URL
+      const dataUrl = canvas.toDataURL(`image/${format}`);
+      
+      return {
+        success: true,
+        dataUrl,
+        width,
+        height,
+        message: 'Screenshot captured (placeholder - integrate html2canvas for full implementation)'
+      };
+    } catch (error) {
+      throw new Error(`Failed to capture screenshot: ${error}`);
+    }
   }
 
   private async captureElementScreenshot(args: any): Promise<any> {
-    throw new Error('Element screenshot capture requires server-side implementation');
+    const { selector, format = 'png' } = args;
+    
+    if (!selector) {
+      throw new Error('Selector is required for element screenshot');
+    }
+
+    const element = document.querySelector(selector);
+    if (!element) {
+      throw new Error(`Element not found: ${selector}`);
+    }
+
+    try {
+      const rect = element.getBoundingClientRect();
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        throw new Error('Failed to create canvas context');
+      }
+
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+
+      // Draw a placeholder
+      ctx.fillStyle = '#e0e0e0';
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      ctx.fillStyle = '#666';
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Element: ${selector}`, rect.width/2, rect.height/2);
+      
+      const dataUrl = canvas.toDataURL(`image/${format}`);
+      
+      return {
+        success: true,
+        dataUrl,
+        width: rect.width,
+        height: rect.height,
+        selector,
+        message: 'Element screenshot captured (placeholder - integrate html2canvas for full implementation)'
+      };
+    } catch (error) {
+      throw new Error(`Failed to capture element screenshot: ${error}`);
+    }
   }
 
   private async stateGetVariable(args: any): Promise<any> {
@@ -465,6 +562,8 @@ export class WebAppMCPClient {
     return { logs: logs.slice(-limit) };
   }
 }
+
+export default WebAppMCPClient;
 
 if (typeof window !== 'undefined') {
   (window as any).WebAppMCPClient = WebAppMCPClient;

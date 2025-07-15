@@ -18,6 +18,10 @@ export const captureTools: ToolDefinition[] = [
           description: 'Image format',
           default: 'png',
         },
+        clientId: {
+          type: 'string',
+          description: 'Client ID to capture from (optional, uses first available browser if not specified)',
+        },
       },
     },
   },
@@ -36,6 +40,10 @@ export const captureTools: ToolDefinition[] = [
           enum: ['png', 'jpeg'],
           description: 'Image format',
           default: 'png',
+        },
+        clientId: {
+          type: 'string',
+          description: 'Client ID to capture from (optional, uses first available browser if not specified)',
         },
       },
       required: ['selector'],

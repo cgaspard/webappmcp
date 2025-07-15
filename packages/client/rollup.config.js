@@ -22,9 +22,10 @@ export default [
     input: 'src/index.ts',
     output: {
       file: 'dist/webappmcp-client.min.js',
-      format: 'iife',
+      format: 'umd',
       name: 'WebAppMCPClient',
       sourcemap: true,
+      exports: 'default',
     },
     plugins: [typescript(), terser()],
   },

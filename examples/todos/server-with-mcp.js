@@ -6,8 +6,14 @@ const { webappMCP } = require('@webappmcp/middleware');
 const app = express();
 const port = process.env.PORT || 4834;
 
-// Middleware
-app.use(bodyParser.json());
+// Middleware - exclude MCP SSE endpoint from body parsing
+app.use((req, res, next) => {
+  // Skip body parsing for MCP SSE endpoint
+  if (req.path === '/mcp/sse') {
+    return next();
+  }
+  bodyParser.json()(req, res, next);
+});
 app.use(express.static('public'));
 
 // Serve the WebApp MCP client library
@@ -15,7 +21,8 @@ app.get('/webappmcp-client.js', (req, res) => {
   res.sendFile(path.join(__dirname, '../../packages/client/dist/webappmcp-client.min.js'));
 });
 
-// Configure WebApp MCP middleware WITH integrated MCP server
+// Configure WebApp MCP middleware
+// Both SSE and stdio transports are always available
 app.use(webappMCP({
   wsPort: 4835,
   authentication: {
@@ -28,7 +35,7 @@ app.use(webappMCP({
     screenshot: true,
     state: true
   },
-  startMCPServer: true  // This starts the MCP server automatically!
+  mcpEndpointPath: '/mcp/sse'  // SSE endpoint path
 }));
 
 // In-memory todos storage
@@ -97,10 +104,13 @@ app.post('/api/todos/clear-completed', (req, res) => {
   res.json({ message: 'Completed todos cleared' });
 });
 
+// Start the Express server
 app.listen(port, () => {
   console.log(`Todos app listening at http://localhost:${port}`);
   console.log(`WebApp MCP WebSocket server at ws://localhost:4835`);
+  console.log(`MCP SSE endpoint at http://localhost:${port}/mcp/sse`);
   console.log(`Auth token: ${process.env.MCP_AUTH_TOKEN || 'demo-token'}`);
-  console.log('\nMCP server is integrated and will start automatically!');
-  console.log('Configure your AI assistant to run this script directly.');
+  console.log('\nBoth SSE and stdio MCP transports are running!');
+  console.log('- SSE: Configure your AI assistant to use the SSE endpoint above');
+  console.log('- Stdio: Run with --mcp-stdio flag for Claude CLI integration');
 });

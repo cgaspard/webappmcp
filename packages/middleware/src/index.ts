@@ -4,9 +4,11 @@ import { createServer } from 'http';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import { IntegratedMCPServer } from './mcp-server.js';
+import { MCPSSEServer } from './mcp-sse-server.js';
 
 export interface WebAppMCPConfig {
   wsPort?: number;
+  wsHost?: string;  // WebSocket host (defaults to '0.0.0.0' to bind to all interfaces)
   authentication?: {
     enabled: boolean;
     token?: string;
@@ -18,7 +20,7 @@ export interface WebAppMCPConfig {
     state?: boolean;
   };
   cors?: cors.CorsOptions;
-  startMCPServer?: boolean;
+  mcpEndpointPath?: string;
 }
 
 export interface ClientInfo {
@@ -31,6 +33,7 @@ export interface ClientInfo {
 export function webappMCP(config: WebAppMCPConfig = {}) {
   const {
     wsPort = 4835,
+    wsHost = '0.0.0.0',  // Bind to all interfaces by default
     authentication = { enabled: false },
     permissions = {
       read: true,
@@ -42,11 +45,12 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
       origin: '*',
       credentials: true,
     },
-    startMCPServer = false,
+    mcpEndpointPath = '/mcp/sse',
   } = config;
 
   const clients = new Map<string, ClientInfo>();
   let wss: WebSocketServer | null = null;
+  let mcpSSEServer: MCPSSEServer | null = null;
 
   // Create WebSocket server immediately, not in middleware
   const server = createServer();
@@ -58,8 +62,16 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
         const clientId = uuidv4();
 
         if (authentication.enabled && authentication.token) {
+          // Check Authorization header first
           const authHeader = request.headers.authorization;
-          if (!authHeader || authHeader !== `Bearer ${authentication.token}`) {
+          
+          // Also check URL parameter as fallback (browsers can't set WebSocket headers)
+          const url = new URL(request.url || '', `http://localhost`);
+          const tokenParam = url.searchParams.get('token');
+          
+          const providedToken = authHeader?.replace('Bearer ', '') || tokenParam;
+          
+          if (!providedToken || providedToken !== authentication.token) {
             ws.close(1008, 'Unauthorized');
             return;
           }
@@ -78,7 +90,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
         ws.on('message', async (data) => {
           try {
             const message = JSON.parse(data.toString());
-            await handleClientMessage(client, message, permissions);
+            await handleClientMessage(client, message, permissions, clients);
           } catch (error) {
             console.error('Error handling WebSocket message:', error);
             ws.send(JSON.stringify({
@@ -106,23 +118,43 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
 
   // Start the WebSocket server if not already listening
   if (!isListening) {
-    server.listen(wsPort, async () => {
+    server.listen(wsPort, wsHost, async () => {
       isListening = true;
-      console.log(`WebApp MCP WebSocket server listening on port ${wsPort}`);
+      console.log(`WebApp MCP WebSocket server listening on ${wsHost}:${wsPort}`);
       
-      // Start MCP server if configured
-      if (startMCPServer) {
-        console.log('Starting integrated MCP server...');
-        const mcpServer = new IntegratedMCPServer({
-          wsUrl: `ws://localhost:${wsPort}`,
-          authToken: authentication.token,
-        });
-        
-        try {
-          await mcpServer.start();
-        } catch (error) {
-          console.error('Failed to start MCP server:', error);
-        }
+      // Always start stdio MCP server
+      console.log('Starting integrated stdio MCP server...');
+      const mcpServer = new IntegratedMCPServer({
+        wsUrl: `ws://${wsHost === '0.0.0.0' ? 'localhost' : wsHost}:${wsPort}`,
+        authToken: authentication.token,
+      });
+      
+      try {
+        await mcpServer.start();
+      } catch (error) {
+        console.error('Failed to start stdio MCP server:', error);
+        // Don't fail the whole server if stdio fails
+      }
+
+      // Always initialize SSE MCP server
+      console.log('Initializing MCP SSE server...');
+      mcpSSEServer = new MCPSSEServer({
+        wsUrl: `ws://${wsHost === '0.0.0.0' ? 'localhost' : wsHost}:${wsPort}`,
+        authToken: authentication.token,
+        getClients: () => {
+          return Array.from(clients.entries()).map(([id, client]) => ({
+            id,
+            url: client.url,
+            connectedAt: client.connectedAt,
+            type: client.url === 'mcp-server' ? 'mcp-server' : 'browser',
+          }));
+        },
+      });
+      
+      try {
+        await mcpSSEServer.initialize();
+      } catch (error) {
+        console.error('Failed to initialize MCP SSE server:', error);
       }
     }).on('error', (err: any) => {
       if (err.code === 'EADDRINUSE') {
@@ -132,6 +164,62 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
         console.error('WebSocket server error:', err);
       }
     });
+  }
+
+  // Store reference to execute tools
+  let executeToolFunction: ((toolName: string, args: any, clientId?: string) => Promise<any>) | null = null;
+
+  // Always set up tool execution for integrated MCP servers
+  {
+    executeToolFunction = async (toolName: string, args: any, clientId?: string) => {
+      let targetClient: ClientInfo | undefined;
+      
+      if (clientId) {
+        // Use specific client if provided
+        targetClient = clients.get(clientId);
+        if (!targetClient) {
+          throw new Error(`Client ${clientId} not found`);
+        }
+      } else {
+        // Find first browser client (not MCP server)
+        targetClient = Array.from(clients.values()).find(
+          client => client.url && client.url !== 'mcp-server'
+        );
+        if (!targetClient) {
+          throw new Error('No browser client connected. Please open the webapp in a browser.');
+        }
+      }
+
+      return new Promise((resolve, reject) => {
+        const requestId = uuidv4();
+        const timeout = setTimeout(() => {
+          reject(new Error('Tool execution timeout'));
+        }, 30000);
+
+        const messageHandler = (data: Buffer) => {
+          const message = JSON.parse(data.toString());
+          if (message.requestId === requestId) {
+            clearTimeout(timeout);
+            targetClient.ws.off('message', messageHandler);
+            
+            if (message.error) {
+              reject(new Error(message.error));
+            } else {
+              resolve(message.result);
+            }
+          }
+        };
+
+        targetClient.ws.on('message', messageHandler);
+        
+        targetClient.ws.send(JSON.stringify({
+          type: 'execute_tool',
+          requestId,
+          tool: toolName,
+          args,
+        }));
+      });
+    };
   }
 
   return (req: Request, res: Response, next: NextFunction) => {
@@ -144,6 +232,70 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
       });
     }
 
+    // List all connected clients
+    if (req.path === '/__webappmcp/clients' && req.method === 'GET') {
+      const clientList = Array.from(clients.entries()).map(([id, client]) => ({
+        id,
+        url: client.url,
+        connectedAt: client.connectedAt,
+        type: client.url === 'mcp-server' ? 'mcp-server' : 'browser',
+      }));
+      return res.json({ clients: clientList });
+    }
+
+    // MCP SSE endpoint
+    if (req.path === mcpEndpointPath) {
+      if (!mcpSSEServer) {
+        return res.status(503).json({ error: 'MCP SSE server not initialized' });
+      }
+
+      return mcpSSEServer.handleSSERequest(req, res);
+    }
+
+    // HTTP API for MCP tools
+    if (req.path.startsWith('/__webappmcp/tools/') && req.method === 'POST') {
+      const toolName = req.path.replace('/__webappmcp/tools/', '');
+      const { clientId, ...args } = req.body;
+      
+      if (!executeToolFunction) {
+        return res.status(503).json({ error: 'MCP server not available' });
+      }
+
+      if (clients.size === 0) {
+        return res.status(503).json({ error: 'No connected clients' });
+      }
+
+      executeToolFunction(toolName, args, clientId)
+        .then(result => {
+          res.json({ success: true, result });
+        })
+        .catch(error => {
+          res.status(500).json({ 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          });
+        });
+      return;
+    }
+
+    // List available tools
+    if (req.path === '/__webappmcp/tools' && req.method === 'GET') {
+      const tools = [
+        'dom_query',
+        'dom_get_properties', 
+        'dom_get_text',
+        'dom_get_html',
+        'interaction_click',
+        'interaction_type',
+        'interaction_scroll',
+        'capture_screenshot',
+        'capture_element_screenshot',
+        'state_get_variable',
+        'state_local_storage',
+        'console_get_logs'
+      ];
+      return res.json({ tools });
+    }
+
     next();
   };
 }
@@ -151,22 +303,49 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
 async function handleClientMessage(
   client: ClientInfo,
   message: any,
-  permissions: any
+  permissions: any,
+  clients: Map<string, ClientInfo>
 ) {
   const { type, requestId } = message;
+  console.log(`[WebSocket] Received message from client ${client.id}:`, JSON.stringify(message));
 
   if (type === 'init') {
     client.url = message.url || client.url;
+    console.log(`[WebSocket] Client ${client.id} initialized with URL: ${client.url}`);
     return;
   }
 
   if (type === 'tool_response') {
-    // Tool responses are handled by the MCP server
+    // Tool responses need to be forwarded back to the MCP server that sent the request
+    console.log(`[WebSocket] Tool response from client ${client.id}:`, message);
+    // Forward to all MCP servers (they will filter by requestId)
+    clients.forEach((otherClient) => {
+      if (otherClient.url === 'mcp-server' || otherClient.url === 'mcp-sse-server') {
+        console.log(`[WebSocket] Forwarding tool response to MCP client ${otherClient.id}`);
+        otherClient.ws.send(JSON.stringify(message));
+      }
+    });
+    return;
+  }
+
+  if (type === 'execute_tool') {
+    // Forward execute_tool messages from MCP servers to browser clients
+    console.log(`[WebSocket] Execute tool request from ${client.id}, forwarding to browser clients`);
+    let browserClients = 0;
+    clients.forEach((otherClient) => {
+      if (otherClient.url !== 'mcp-server' && otherClient.url !== 'mcp-sse-server' && otherClient.id !== client.id) {
+        console.log(`[WebSocket] Forwarding execute_tool to browser client ${otherClient.id}`);
+        otherClient.ws.send(JSON.stringify(message));
+        browserClients++;
+      }
+    });
+    console.log(`[WebSocket] Forwarded execute_tool to ${browserClients} browser clients`);
     return;
   }
 
   // For any other message type, just log it
-  console.log(`Received message type: ${type} from client ${client.id}`);
+  console.log(`[WebSocket] Unhandled message type: ${type} from client ${client.id}`);
 }
 
 export default webappMCP;
+export { IntegratedMCPServer } from './mcp-server.js';
