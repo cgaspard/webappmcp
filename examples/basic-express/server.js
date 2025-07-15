@@ -3,7 +3,7 @@ const path = require('path');
 const { webappMCP } = require('@webappmcp/middleware');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3456;
 
 // Configure WebApp MCP middleware
 app.use(webappMCP({

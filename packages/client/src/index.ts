@@ -246,10 +246,10 @@ export class WebAppMCPClient {
         id: el.id || undefined,
         className: el.className || undefined,
         text: el.textContent?.trim().substring(0, 100),
-        attributes: Array.from(el.attributes).reduce((acc, attr) => {
+        attributes: Array.from(el.attributes).reduce((acc: Record<string, string>, attr: Attr) => {
           acc[attr.name] = attr.value;
           return acc;
-        }, {} as Record<string, string>),
+        }, {}),
       })),
     };
   }
