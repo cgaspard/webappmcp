@@ -142,32 +142,27 @@ webappMCP({
 
 ## Examples
 
-### Query DOM Elements
-```javascript
-// AI Assistant can use:
-const buttons = await webapp.dom.query({ selector: 'button.primary' });
-```
+Check out the [Todos App Example](examples/todos) - a fully functional todo application that demonstrates all WebApp MCP features.
 
-### Simulate User Interactions
-```javascript
-// Click a button
-await webapp.interaction.click({ selector: '#submit-button' });
+### Common Use Cases
 
-// Type into an input
+```javascript
+// Add a new todo
 await webapp.interaction.type({ 
-  selector: '#email-input',
-  text: 'user@example.com'
+  selector: '#new-todo',
+  text: 'Buy groceries'
 });
-```
+await webapp.interaction.click({ selector: '#add-todo' });
 
-### Capture Screenshots
-```javascript
-// Full page screenshot
-const screenshot = await webapp.capture.screenshot();
+// Toggle todo completion
+await webapp.interaction.click({ selector: '.todo-checkbox' });
 
-// Element screenshot
-const elementShot = await webapp.capture.elementScreenshot({
-  selector: '.product-card'
+// Filter todos
+await webapp.interaction.click({ selector: '[data-filter="active"]' });
+
+// Access application state
+const todos = await webapp.state.getVariable({ 
+  path: 'window.todosApp.todos' 
 });
 ```
 
