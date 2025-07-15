@@ -3,6 +3,7 @@ import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
+import { IntegratedMCPServer } from './mcp-server.js';
 
 export interface WebAppMCPConfig {
   wsPort?: number;
@@ -17,6 +18,7 @@ export interface WebAppMCPConfig {
     state?: boolean;
   };
   cors?: cors.CorsOptions;
+  startMCPServer?: boolean;
 }
 
 export interface ClientInfo {
@@ -28,7 +30,7 @@ export interface ClientInfo {
 
 export function webappMCP(config: WebAppMCPConfig = {}) {
   const {
-    wsPort = 3101,
+    wsPort = 4835,
     authentication = { enabled: false },
     permissions = {
       read: true,
@@ -40,17 +42,19 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
       origin: '*',
       credentials: true,
     },
+    startMCPServer = false,
   } = config;
 
   const clients = new Map<string, ClientInfo>();
   let wss: WebSocketServer | null = null;
 
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!wss) {
-      const server = createServer();
-      wss = new WebSocketServer({ server });
+  // Create WebSocket server immediately, not in middleware
+  const server = createServer();
+  wss = new WebSocketServer({ server });
+  
+  let isListening = false;
 
-      wss.on('connection', (ws, request) => {
+  wss.on('connection', (ws, request) => {
         const clientId = uuidv4();
 
         if (authentication.enabled && authentication.token) {
@@ -93,17 +97,44 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           console.error(`WebSocket error for client ${clientId}:`, error);
         });
 
-        ws.send(JSON.stringify({
-          type: 'connected',
-          clientId,
-          permissions,
-        }));
-      });
+    ws.send(JSON.stringify({
+      type: 'connected',
+      clientId,
+      permissions,
+    }));
+  });
 
-      server.listen(wsPort, () => {
-        console.log(`WebApp MCP WebSocket server listening on port ${wsPort}`);
-      });
-    }
+  // Start the WebSocket server if not already listening
+  if (!isListening) {
+    server.listen(wsPort, async () => {
+      isListening = true;
+      console.log(`WebApp MCP WebSocket server listening on port ${wsPort}`);
+      
+      // Start MCP server if configured
+      if (startMCPServer) {
+        console.log('Starting integrated MCP server...');
+        const mcpServer = new IntegratedMCPServer({
+          wsUrl: `ws://localhost:${wsPort}`,
+          authToken: authentication.token,
+        });
+        
+        try {
+          await mcpServer.start();
+        } catch (error) {
+          console.error('Failed to start MCP server:', error);
+        }
+      }
+    }).on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log(`WebSocket port ${wsPort} is already in use, skipping WebSocket server creation`);
+        isListening = true; // Prevent further attempts
+      } else {
+        console.error('WebSocket server error:', err);
+      }
+    });
+  }
+
+  return (req: Request, res: Response, next: NextFunction) => {
 
     if (req.path === '/__webappmcp/status') {
       return res.json({
@@ -122,7 +153,7 @@ async function handleClientMessage(
   message: any,
   permissions: any
 ) {
-  const { type, requestId, tool, args } = message;
+  const { type, requestId } = message;
 
   if (type === 'init') {
     client.url = message.url || client.url;
@@ -130,14 +161,12 @@ async function handleClientMessage(
   }
 
   if (type === 'tool_response') {
+    // Tool responses are handled by the MCP server
     return;
   }
 
-  client.ws.send(JSON.stringify({
-    type: 'error',
-    requestId,
-    error: `Unknown message type: ${type}`,
-  }));
+  // For any other message type, just log it
+  console.log(`Received message type: ${type} from client ${client.id}`);
 }
 
 export default webappMCP;

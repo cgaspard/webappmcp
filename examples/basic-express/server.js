@@ -3,11 +3,11 @@ const path = require('path');
 const { webappMCP } = require('@webappmcp/middleware');
 
 const app = express();
-const port = process.env.PORT || 3456;
+const port = process.env.PORT || 4834;
 
 // Configure WebApp MCP middleware
 app.use(webappMCP({
-  wsPort: 3101,
+  wsPort: 4835,
   authentication: {
     enabled: true,
     token: process.env.MCP_AUTH_TOKEN || 'demo-token'

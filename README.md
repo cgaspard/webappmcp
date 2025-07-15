@@ -30,7 +30,7 @@ const app = express();
 // Configure the MCP middleware
 app.use(webappMCP({
   mcpPort: 3100,
-  wsPort: 3101,
+  wsPort: 4835,
   authentication: {
     enabled: true,
     token: process.env.MCP_AUTH_TOKEN
@@ -46,7 +46,7 @@ app.listen(3000);
 <script src="https://unpkg.com/@webappmcp/client"></script>
 <script>
   const mcpClient = new WebAppMCPClient({
-    serverUrl: 'ws://localhost:3101',
+    serverUrl: 'ws://localhost:4835',
     authToken: 'your-auth-token'
   });
   
@@ -60,7 +60,7 @@ Or with npm:
 import { WebAppMCPClient } from '@webappmcp/client';
 
 const mcpClient = new WebAppMCPClient({
-  serverUrl: 'ws://localhost:3101',
+  serverUrl: 'ws://localhost:4835',
   authToken: 'your-auth-token'
 });
 
@@ -116,7 +116,7 @@ webappMCP({
   mcpPort: 3100,
   
   // WebSocket port for client connections
-  wsPort: 3101,
+  wsPort: 4835,
   
   // Authentication settings
   authentication: {

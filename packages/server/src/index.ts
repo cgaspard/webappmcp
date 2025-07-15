@@ -152,7 +152,7 @@ export class WebAppMCPServer {
 }
 
 async function main() {
-  const wsPort = parseInt(process.env.WS_PORT || '3101');
+  const wsPort = parseInt(process.env.WS_PORT || '4835');
   const authToken = process.env.MCP_AUTH_TOKEN;
 
   const server = new WebAppMCPServer({

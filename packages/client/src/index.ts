@@ -12,7 +12,11 @@ export class WebAppMCPClient {
   private reconnectTimer: any;
   private messageHandlers = new Map<string, (data: any) => void>();
   private consoleLogs: any[] = [];
-  private isConnected = false;
+  private _isConnected = false;
+  
+  get isConnected(): boolean {
+    return this._isConnected && this.ws?.readyState === WebSocket.OPEN;
+  }
 
   constructor(config: WebAppMCPClientConfig) {
     this.config = {
@@ -43,7 +47,7 @@ export class WebAppMCPClient {
   }
 
   disconnect(): void {
-    this.isConnected = false;
+    this._isConnected = false;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -59,7 +63,7 @@ export class WebAppMCPClient {
 
     this.ws.onopen = () => {
       console.log('Connected to WebApp MCP server');
-      this.isConnected = true;
+      this._isConnected = true;
       this.reconnectAttempts = 0;
       this.sendMessage({
         type: 'init',
@@ -82,7 +86,7 @@ export class WebAppMCPClient {
 
     this.ws.onclose = () => {
       console.log('Disconnected from WebApp MCP server');
-      this.isConnected = false;
+      this._isConnected = false;
       this.scheduleReconnect();
     };
   }

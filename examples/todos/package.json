@@ -6,6 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "start:mcp": "node server-with-mcp.js",
     "dev": "nodemon server.js",
     "build": "echo 'No build required for todos example'"
   },
