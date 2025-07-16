@@ -8,7 +8,6 @@ If you see errors about missing modules:
 
 ```bash
 # Install all dependencies from the root
-cd /Users/cgaspard/Projects/cgaspard/webappmcp
 npm install
 ```
 
@@ -35,11 +34,13 @@ PORT=3457 npm start
 
 ### 4. Missing Module Errors
 
-If you see "Cannot find module '@webappmcp/middleware'":
+If you see "Cannot find module '@cgaspard/webappmcp'":
 
 ```bash
-# The packages need to be built first
-cd /Users/cgaspard/Projects/cgaspard/webappmcp
+# Install the package from npm
+npm install @cgaspard/webappmcp
+
+# Or if developing locally, build the packages first
 npm run build
 
 # Then try running again
@@ -70,7 +71,7 @@ Run this to reset everything:
 
 ```bash
 #!/bin/bash
-cd /Users/cgaspard/Projects/cgaspard/webappmcp
+# Run from the project root directory
 
 # Clean up
 rm -rf node_modules package-lock.json

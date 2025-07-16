@@ -14,7 +14,7 @@ A Model Context Protocol (MCP) server that enables AI assistants to interact wit
 ## Installation
 
 ```bash
-npm install @webappmcp/server
+npm install @cgaspard/webappmcp
 ```
 
 ## Quick Start
@@ -23,31 +23,32 @@ npm install @webappmcp/server
 
 ```javascript
 import express from 'express';
-import { webappMCP } from '@webappmcp/middleware';
+import { webappMCP } from '@cgaspard/webappmcp';
 
 const app = express();
 
 // Configure the MCP middleware
 app.use(webappMCP({
-  mcpPort: 3100,
+  transport: 'sse',
   wsPort: 4835,
-  authentication: {
-    enabled: true,
-    token: process.env.MCP_AUTH_TOKEN
+  cors: {
+    origin: true,
+    credentials: true
   }
 }));
 
 app.listen(3000);
+console.log('MCP SSE endpoint: http://localhost:3000/mcp/sse');
 ```
 
 ### 2. Add client to your frontend
 
 ```html
-<script src="https://unpkg.com/@webappmcp/client"></script>
+<script src="https://unpkg.com/@cgaspard/webappmcp/dist/browser.min.js"></script>
 <script>
-  const mcpClient = new WebAppMCPClient({
+  const mcpClient = new WebAppMCP.WebAppMCPClient({
     serverUrl: 'ws://localhost:4835',
-    authToken: 'your-auth-token'
+    autoConnect: true
   });
   
   mcpClient.connect();
@@ -57,11 +58,11 @@ app.listen(3000);
 Or with npm:
 
 ```javascript
-import { WebAppMCPClient } from '@webappmcp/client';
+import { WebAppMCPClient } from '@cgaspard/webappmcp';
 
 const mcpClient = new WebAppMCPClient({
   serverUrl: 'ws://localhost:4835',
-  authToken: 'your-auth-token'
+  autoConnect: true
 });
 
 mcpClient.connect();
@@ -69,16 +70,84 @@ mcpClient.connect();
 
 ### 3. Configure your AI assistant
 
-Add the MCP server to your AI assistant configuration:
+#### Claude Desktop App
 
+Add using the command line:
+```bash
+claude mcp add webapp-sse sse:http://localhost:3000/mcp/sse
+```
+
+Or manually edit your configuration:
+```json
+{
+  "mcpServers": {
+    "webapp-sse": {
+      "transport": {
+        "type": "sse",
+        "url": "http://localhost:3000/mcp/sse"
+      }
+    }
+  }
+}
+```
+
+#### Claude Code CLI
+
+Add to your Claude Code configuration (`~/.config/claude-code/settings.json`):
 ```json
 {
   "mcpServers": {
     "webapp": {
-      "command": "npx",
-      "args": ["@webappmcp/server", "--port", "3100"],
-      "env": {
-        "MCP_AUTH_TOKEN": "your-auth-token"
+      "transport": {
+        "type": "sse", 
+        "url": "http://localhost:3000/mcp/sse"
+      }
+    }
+  }
+}
+```
+
+#### Cline (VS Code Extension)
+
+Add to your Cline MCP settings in VS Code:
+```json
+{
+  "webapp": {
+    "transport": {
+      "type": "sse",
+      "url": "http://localhost:3000/mcp/sse"
+    }
+  }
+}
+```
+
+#### Continue.dev
+
+Add to your Continue configuration (`~/.continue/config.json`):
+```json
+{
+  "models": [...],
+  "mcpServers": {
+    "webapp": {
+      "transport": {
+        "type": "sse",
+        "url": "http://localhost:3000/mcp/sse"
+      }
+    }
+  }
+}
+```
+
+#### Zed Editor
+
+Add to your Zed assistant panel settings:
+```json
+{
+  "mcpServers": {
+    "webapp": {
+      "transport": {
+        "type": "sse",
+        "url": "http://localhost:3000/mcp/sse"
       }
     }
   }
@@ -88,25 +157,31 @@ Add the MCP server to your AI assistant configuration:
 ## Available Tools
 
 ### DOM Inspection
-- `dom.query` - Find elements using CSS selectors
-- `dom.getProperties` - Get element properties and attributes
-- `dom.getText` - Extract text content
-- `dom.getHTML` - Get HTML structure
+- `dom_query` - Find elements using CSS selectors
+- `dom_get_properties` - Get element properties and attributes
+- `dom_get_text` - Extract text content
+- `dom_get_html` - Get HTML structure
+- `dom_manipulate` - Modify DOM elements (setAttribute, addClass, etc.)
 
 ### User Interactions
-- `interaction.click` - Click on elements
-- `interaction.type` - Type text into inputs
-- `interaction.scroll` - Scroll page or elements
-- `interaction.hover` - Hover over elements
+- `interaction_click` - Click on elements
+- `interaction_type` - Type text into inputs
+- `interaction_scroll` - Scroll page or elements
+- `interaction_hover` - Hover over elements
 
 ### Visual Capture
-- `capture.screenshot` - Take full page screenshots
-- `capture.elementScreenshot` - Capture specific elements
+- `capture_screenshot` - Take full page screenshots
+- `capture_element_screenshot` - Capture specific elements
 
 ### State Management
-- `state.getVariable` - Access JavaScript variables
-- `state.localStorage` - Read/write local storage
-- `console.getLogs` - Retrieve console logs
+- `state_get_variable` - Access JavaScript variables
+- `state_local_storage` - Read/write local storage
+- `console_get_logs` - Retrieve console logs
+
+### Diagnostic Tools
+- `webapp_list_clients` - List connected browser clients
+- `javascript_inject` - Execute JavaScript code in the browser
+- `execute_javascript` - Execute JavaScript with async support
 
 ## Configuration Options
 
@@ -180,12 +255,20 @@ WebApp MCP Server includes several security features:
 
 ### React
 ```javascript
-import { useWebAppMCP } from '@webappmcp/react';
+import { useEffect } from 'react';
+import { WebAppMCPClient } from '@cgaspard/webappmcp';
 
 function App() {
-  const mcp = useWebAppMCP({
-    serverUrl: 'ws://localhost:3101'
-  });
+  useEffect(() => {
+    const client = new WebAppMCPClient({
+      serverUrl: 'ws://localhost:4835',
+      autoConnect: true
+    });
+    
+    client.connect();
+    
+    return () => client.disconnect();
+  }, []);
   
   return <div>Your app content</div>;
 }
@@ -193,23 +276,53 @@ function App() {
 
 ### Vue
 ```javascript
-import { WebAppMCPPlugin } from '@webappmcp/vue';
+import { WebAppMCPClient } from '@cgaspard/webappmcp';
 
-app.use(WebAppMCPPlugin, {
-  serverUrl: 'ws://localhost:3101'
-});
+export default {
+  mounted() {
+    this.mcpClient = new WebAppMCPClient({
+      serverUrl: 'ws://localhost:4835',
+      autoConnect: true
+    });
+    
+    this.mcpClient.connect();
+  },
+  
+  beforeUnmount() {
+    if (this.mcpClient) {
+      this.mcpClient.disconnect();
+    }
+  }
+}
 ```
 
 ### Angular
 ```typescript
-import { WebAppMCPModule } from '@webappmcp/angular';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { WebAppMCPClient } from '@cgaspard/webappmcp';
 
-@NgModule({
-  imports: [WebAppMCPModule.forRoot({
-    serverUrl: 'ws://localhost:3101'
-  })]
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html'
 })
-export class AppModule { }
+export class AppComponent implements OnInit, OnDestroy {
+  private mcpClient: WebAppMCPClient;
+  
+  ngOnInit() {
+    this.mcpClient = new WebAppMCPClient({
+      serverUrl: 'ws://localhost:4835',
+      autoConnect: true
+    });
+    
+    this.mcpClient.connect();
+  }
+  
+  ngOnDestroy() {
+    if (this.mcpClient) {
+      this.mcpClient.disconnect();
+    }
+  }
+}
 ```
 
 ## Development

@@ -1,11 +1,11 @@
-# @webappmcp/client
+# @cgaspard/webappmcp-client
 
 Browser client for WebApp MCP integration - connects web applications to AI assistants through WebSocket communication.
 
 ## Installation
 
 ```bash
-npm install @webappmcp/client
+npm install @cgaspard/webappmcp-client
 ```
 
 ## Quick Start
@@ -13,7 +13,7 @@ npm install @webappmcp/client
 ### ES Modules
 
 ```javascript
-import { WebAppMCPClient } from '@webappmcp/client';
+import { WebAppMCPClient } from '@cgaspard/webappmcp-client';
 
 const client = new WebAppMCPClient({
   serverUrl: 'ws://localhost:3101',
@@ -26,7 +26,7 @@ client.connect();
 ### Script Tag
 
 ```html
-<script src="https://unpkg.com/@webappmcp/client/dist/webappmcp-client.min.js"></script>
+<script src="https://unpkg.com/@cgaspard/webappmcp-client/dist/webappmcp-client.min.js"></script>
 <script>
   const client = new WebAppMCP.WebAppMCPClient({
     serverUrl: 'ws://localhost:3101',
@@ -41,7 +41,7 @@ client.connect();
 
 ```jsx
 import { useEffect } from 'react';
-import { WebAppMCPClient } from '@webappmcp/client';
+import { WebAppMCPClient } from '@cgaspard/webappmcp-client';
 
 function App() {
   useEffect(() => {

@@ -24,7 +24,7 @@ Add to your Claude configuration:
   "mcpServers": {
     "webapp": {
       "command": "npx",
-      "args": ["@webappmcp/server", "--ws-port", "3101"],
+      "args": ["@cgaspard/webappmcp-server", "--ws-port", "3101"],
       "env": {
         "MCP_AUTH_TOKEN": "demo-token"
       }

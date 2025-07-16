@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { webappMCP } = require('@webappmcp/middleware');
+const { webappMCP } = require('@cgaspard/webappmcp-middleware');
 
 const app = express();
 const PORT = process.env.PORT || 4838;
@@ -35,7 +35,7 @@ app.use(express.static(path.join(__dirname, 'dist')));
 
 // Serve the WebApp MCP client library
 app.get('/webappmcp-client.js', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../packages/client/dist/webappmcp-client.min.js'));
+  res.sendFile(path.join(__dirname, '../../packages/webappmcp/dist/browser.min.js'));
 });
 
 // Fallback to index.html for client-side routing

@@ -9,6 +9,7 @@ export default [
         file: 'dist/index.js',
         format: 'cjs',
         sourcemap: true,
+        exports: 'named',
       },
       {
         file: 'dist/index.esm.js',
@@ -23,9 +24,9 @@ export default [
     output: {
       file: 'dist/webappmcp-client.min.js',
       format: 'umd',
-      name: 'WebAppMCPClient',
+      name: 'WebAppMCP',
       sourcemap: true,
-      exports: 'default',
+      exports: 'named',
     },
     plugins: [typescript(), terser()],
   },

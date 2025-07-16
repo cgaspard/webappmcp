@@ -758,8 +758,12 @@ class WebAppMCPClient {
   }
 }
 
+// Named export
+export { WebAppMCPClient };
+
+// Default export
 export default WebAppMCPClient;
 
 if (typeof window !== 'undefined') {
-  (window as any).WebAppMCPClient = WebAppMCPClient;
+  (window as any).WebAppMCP = { WebAppMCPClient };
 }

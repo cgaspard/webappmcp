@@ -1,5 +1,5 @@
 {
-  "name": "@webappmcp/client",
+  "name": "@cgaspard/webappmcp-client",
   "version": "0.1.0",
   "description": "Browser client for WebApp MCP integration - connects web applications to AI assistants",
   "main": "dist/index.js",

@@ -6,7 +6,7 @@ This guide helps you run and debug the WebApp MCP Server using VS Code.
 
 1. **Open the project in VS Code**:
    ```bash
-   code /Users/cgaspard/Projects/cgaspard/webappmcp
+   code .
    ```
 
 2. **Install dependencies** (if not already done):
@@ -72,12 +72,10 @@ Once the servers are running:
    ```json
    {
      "mcpServers": {
-       "webapp": {
-         "command": "node",
-         "args": ["/Users/cgaspard/Projects/cgaspard/webappmcp/packages/server/dist/index.js"],
-         "env": {
-           "MCP_AUTH_TOKEN": "demo-token",
-           "WS_PORT": "3101"
+       "webapp-sse": {
+         "transport": {
+           "type": "sse",
+           "url": "http://localhost:3456/mcp/sse"
          }
        }
      }

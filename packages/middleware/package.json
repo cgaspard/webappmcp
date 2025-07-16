@@ -1,5 +1,5 @@
 {
-  "name": "@webappmcp/middleware",
+  "name": "@cgaspard/webappmcp-middleware",
   "version": "0.1.0",
   "description": "Express middleware for WebApp MCP integration - enables AI assistants to interact with web applications",
   "main": "dist/index.js",

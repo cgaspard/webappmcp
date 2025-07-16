@@ -1,18 +1,18 @@
-# @webappmcp/middleware
+# @cgaspard/webappmcp-middleware
 
 Express middleware for WebApp MCP integration - enables AI assistants to interact with web applications through the Model Context Protocol.
 
 ## Installation
 
 ```bash
-npm install @webappmcp/middleware
+npm install @cgaspard/webappmcp-middleware
 ```
 
 ## Quick Start
 
 ```javascript
 import express from 'express';
-import { webappMCP } from '@webappmcp/middleware';
+import { webappMCP } from '@cgaspard/webappmcp-middleware';
 
 const app = express();
 
