@@ -25,6 +25,7 @@ export class MCPDevTools {
       theme: 'dark',
       ...config
     };
+    this.addStyles();
     this.createDevToolsUI();
     this.setupEventListeners();
   }
@@ -153,8 +154,8 @@ export class MCPDevTools {
 
       .mcp-devtools-panel {
         position: absolute;
-        width: 400px;
-        height: 300px;
+        width: 500px;
+        height: 400px;
         background: white;
         border: 1px solid #e0e0e0;
         border-radius: 8px;
@@ -510,10 +511,10 @@ export class MCPDevTools {
       data
     };
 
-    this.logs.push(log);
+    this.logs.unshift(log);
     
     if (this.logs.length > this.maxLogs) {
-      this.logs = this.logs.slice(-this.maxLogs);
+      this.logs = this.logs.slice(0, this.maxLogs);
     }
 
     this.renderLogs();
@@ -565,10 +566,10 @@ export class MCPDevTools {
       }
     }).join('');
 
-    // Auto-scroll if enabled
+    // Auto-scroll to top if enabled (latest items are at the top)
     const autoScrollCheckbox = this.container?.querySelector('#mcp-autoscroll') as HTMLInputElement;
     if (autoScrollCheckbox?.checked) {
-      logsContainer.scrollTop = logsContainer.scrollHeight;
+      logsContainer.scrollTop = 0;
     }
   }
 

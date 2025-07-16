@@ -95,7 +95,7 @@ webappmcp/
 
 Users will configure the middleware with:
 ```javascript
-import { webappMCP } from '@cgaspard/webappmcp-middleware';
+import { webappMCP } from '@cgaspard/webappmcp';
 
 app.use(webappMCP({
   // MCP server configuration
@@ -121,7 +121,7 @@ app.use(webappMCP({
 
 Frontend integration:
 ```javascript
-import { WebAppMCPClient } from '@cgaspard/webappmcp-client';
+import { WebAppMCPClient } from '@cgaspard/webappmcp';
 
 const mcpClient = new WebAppMCPClient({
   serverUrl: 'ws://localhost:3101',

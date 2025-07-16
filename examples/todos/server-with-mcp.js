@@ -1,16 +1,19 @@
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
-const { webappMCP } = require('@cgaspard/webappmcp-middleware');
+const { webappMCP } = require('@cgaspard/webappmcp');
 
 const app = express();
 const port = process.env.PORT || 4834;
 
-// Add request logging middleware at the very beginning
+// Request logging middleware
 app.use((req, res, next) => {
-  console.log(`[Express] ${new Date().toISOString()} ${req.method} ${req.path}`);
-  console.log(`[Express] Headers:`, JSON.stringify(req.headers, null, 2));
-  console.log(`[Express] Query:`, req.query);
+  const timestamp = new Date().toISOString();
+  console.log(`[Express] ${timestamp} ${req.method} ${req.url}`);
+  console.log(`[Express] Headers:`, req.headers);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log(`[Express] Body:`, req.body);
+  }
   next();
 });
 
@@ -36,22 +39,9 @@ if (args.includes('--stdio')) {
   transport = 'none';
 }
 
-// Middleware - exclude MCP SSE endpoint from body parsing
-// Add comprehensive request logging
+// Middleware - skip body parsing for MCP SSE requests
 app.use((req, res, next) => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] ${req.method} ${req.url}`);
-  console.log(`[${timestamp}] Headers:`, JSON.stringify(req.headers, null, 2));
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log(`[${timestamp}] Body:`, JSON.stringify(req.body, null, 2));
-  }
-  next();
-});
-
-app.use((req, res, next) => {
-  // Skip body parsing for MCP SSE endpoint
   if (req.path === '/mcp/sse') {
-    console.log(`[SSE] Detected SSE endpoint request, skipping body parser`);
     return next();
   }
   bodyParser.json()(req, res, next);
@@ -60,7 +50,7 @@ app.use(express.static('public'));
 
 // Serve the WebApp MCP client library
 app.get('/webappmcp-client.js', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../packages/client/dist/webappmcp-client.min.js'));
+  res.sendFile(path.join(__dirname, '../../packages/webappmcp/dist/browser.min.js'));
 });
 
 // Configure WebApp MCP middleware with selected transport
@@ -76,8 +66,9 @@ app.use(webappMCP({
     screenshot: true,
     state: true
   },
-  mcpEndpointPath: '/mcp/sse',  // SSE endpoint path
-  transport: transport  // Use the selected transport
+  mcpEndpointPath: '/mcp/sse',
+  transport: transport,
+  debug: true
 }));
 
 // In-memory todos storage
@@ -171,10 +162,5 @@ app.listen(port, () => {
     }
     
     console.log(`Auth token: ${process.env.MCP_AUTH_TOKEN || 'demo-token'}`);
-    console.log('\nUsage:');
-    console.log('  --stdio : Enable stdio MCP transport (for Claude CLI)');
-    console.log('  --sse   : Enable SSE MCP transport (default)');
-    console.log('  --socket: Enable Unix socket MCP transport');
-    console.log('  --none  : Disable MCP transport (WebSocket only)');
   }
 });

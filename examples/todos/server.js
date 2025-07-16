@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
-const { webappMCP } = require('@cgaspard/webappmcp-middleware');
+const { webappMCP } = require('@cgaspard/webappmcp');
 
 const app = express();
 const port = process.env.PORT || 4834;
@@ -12,7 +12,7 @@ app.use(express.static('public'));
 
 // Serve the WebApp MCP client library
 app.get('/webappmcp-client.js', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../packages/client/dist/webappmcp-client.min.js'));
+  res.sendFile(path.join(__dirname, '../../packages/webappmcp/dist/browser.min.js'));
 });
 
 // Configure WebApp MCP middleware
@@ -22,12 +22,9 @@ app.use(webappMCP({
     enabled: true,
     token: process.env.MCP_AUTH_TOKEN || 'demo-token'
   },
-  permissions: {
-    read: true,
-    write: true,
-    screenshot: true,
-    state: true
-  }
+  transport: 'sse',
+  mcpEndpointPath: '/mcp/sse',
+  debug: true
 }));
 
 // In-memory todos storage
@@ -99,5 +96,6 @@ app.post('/api/todos/clear-completed', (req, res) => {
 app.listen(port, () => {
   console.log(`Todos app listening at http://localhost:${port}`);
   console.log(`WebApp MCP WebSocket server at ws://localhost:4835`);
+  console.log(`MCP transport: sse`);
   console.log(`Auth token: ${process.env.MCP_AUTH_TOKEN || 'demo-token'}`);
 });

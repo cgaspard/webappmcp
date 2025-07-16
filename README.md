@@ -72,19 +72,22 @@ mcpClient.connect();
 
 #### Claude Desktop App
 
-Add using the command line:
+Add using the command line (example for basic todos app):
 ```bash
-claude mcp add webapp-sse sse:http://localhost:3000/mcp/sse
+claude mcp add webapp-sse sse:http://localhost:4834/mcp/sse
 ```
 
-Or manually edit your configuration:
+For any of the example apps, use the same standardized port:
+- **All Examples**: `http://localhost:4834/mcp/sse`
+
+Or manually edit your configuration (example for basic todos app):
 ```json
 {
   "mcpServers": {
     "webapp-sse": {
       "transport": {
         "type": "sse",
-        "url": "http://localhost:3000/mcp/sse"
+        "url": "http://localhost:4834/mcp/sse"
       }
     }
   }
@@ -100,7 +103,7 @@ Add to your Claude Code configuration (`~/.config/claude-code/settings.json`):
     "webapp": {
       "transport": {
         "type": "sse", 
-        "url": "http://localhost:3000/mcp/sse"
+        "url": "http://localhost:4834/mcp/sse"
       }
     }
   }
@@ -115,7 +118,7 @@ Add to your Cline MCP settings in VS Code:
   "webapp": {
     "transport": {
       "type": "sse",
-      "url": "http://localhost:3000/mcp/sse"
+      "url": "http://localhost:4834/mcp/sse"
     }
   }
 }
@@ -131,7 +134,7 @@ Add to your Continue configuration (`~/.continue/config.json`):
     "webapp": {
       "transport": {
         "type": "sse",
-        "url": "http://localhost:3000/mcp/sse"
+        "url": "http://localhost:4834/mcp/sse"
       }
     }
   }
@@ -147,7 +150,7 @@ Add to your Zed assistant panel settings:
     "webapp": {
       "transport": {
         "type": "sse",
-        "url": "http://localhost:3000/mcp/sse"
+        "url": "http://localhost:4834/mcp/sse"
       }
     }
   }

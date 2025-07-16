@@ -58,13 +58,13 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
   // Logger helper that respects debug setting
   const log = (...args: any[]) => {
     if (debug) {
-      console.log('[WebAppMCP]', ...args);
+      console.log('[webappmcp]', ...args);
     }
   };
 
   const logError = (...args: any[]) => {
     // Always log errors regardless of debug setting
-    console.error('[WebAppMCP Error]', ...args);
+    console.error('[webappmcp]', ...args);
   };
 
   const clients = new Map<string, ClientInfo>();
@@ -140,6 +140,8 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
     server.listen(wsPort, wsHost, async () => {
       isListening = true;
       log(`WebApp MCP WebSocket server listening on ${wsHost}:${wsPort}`);
+      log(`=== STARTING MCP TRANSPORT CONFIGURATION ===`);
+      log(`Transport type: ${transport}`);
 
       // Start MCP transport based on configuration
       if (transport === 'stdio') {
@@ -163,8 +165,6 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
         log(`Auth token: ${authentication.token}`);
 
         mcpSSEServer = new MCPSSEServer({
-          wsUrl: `ws://${wsHost === '0.0.0.0' ? 'localhost' : wsHost}:${wsPort}`,
-          authToken: authentication.token,
           debug: debug,
           getClients: () => {
             return Array.from(clients.entries()).map(([id, client]) => ({
@@ -174,12 +174,15 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
               type: client.url === 'mcp-server' ? 'mcp-server' : 'browser',
             }));
           },
+          executeTool: executeToolFunction || undefined,
         });
 
         try {
+          log('Calling mcpSSEServer.initialize()...');
           await mcpSSEServer.initialize();
           log('✅ SSE MCP transport initialized successfully');
           log(`✅ SSE endpoint registered at: ${mcpEndpointPath}`);
+          log(`✅ MCPSSEServer instance created: ${mcpSSEServer ? 'Yes' : 'No'}`);
           log('✅ Ready to accept MCP connections');
         } catch (error) {
           logError('❌ Failed to initialize MCP SSE server:', error);
@@ -299,16 +302,19 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
 
     // MCP SSE endpoint
     if (req.path === mcpEndpointPath) {
+      log(`[Middleware] ======= MCP SSE ENDPOINT HIT =======`);
       log(`[Middleware] Request to MCP SSE endpoint: ${req.method} ${req.path}`);
+      log(`[Middleware] Expected endpoint path: ${mcpEndpointPath}`);
       log(`[Middleware] Transport mode: ${transport}`);
       log(`[Middleware] SSE Server initialized: ${mcpSSEServer ? 'Yes' : 'No'}`);
+      log(`[Middleware] SSE Server type: ${typeof mcpSSEServer}`);
 
       if (!mcpSSEServer) {
         log(`[Middleware] ERROR: MCP SSE server not initialized`);
         return res.status(503).json({ error: 'MCP SSE server not initialized' });
       }
 
-      log(`[Middleware] Forwarding request to SSE server`);
+      log(`[Middleware] Forwarding request to SSE server handleSSERequest method`);
       return mcpSSEServer.handleSSERequest(req, res);
     }
 

@@ -6,6 +6,9 @@ describe('MCPDevTools', () => {
   beforeEach(() => {
     // Clear the DOM
     document.body.innerHTML = '';
+    
+    // Mock addStyles to prevent CSS parsing issues in JSDOM
+    jest.spyOn(MCPDevTools.prototype, 'addStyles' as any).mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -14,6 +17,8 @@ describe('MCPDevTools', () => {
       const container = document.getElementById('mcp-devtools');
       container?.remove();
     }
+    
+    jest.restoreAllMocks();
   });
 
   describe('Initialization', () => {
@@ -22,7 +27,7 @@ describe('MCPDevTools', () => {
 
       const container = document.getElementById('mcp-devtools');
       expect(container).toBeTruthy();
-      expect(container?.classList.contains('mcp-theme-light')).toBe(true);
+      expect(container?.classList.contains('mcp-theme-dark')).toBe(true);
       expect(container?.classList.contains('mcp-position-bottom-right')).toBe(true);
     });
 
@@ -146,14 +151,14 @@ describe('MCPDevTools', () => {
       const logs = logsContainer?.querySelectorAll('.mcp-log-entry');
       expect(logs?.length).toBe(3);
 
-      expect(logs?.[0].classList.contains('info')).toBe(true);
-      expect(logs?.[0].textContent).toContain('Test info message');
+      expect(logs?.[0].classList.contains('error')).toBe(true);
+      expect(logs?.[0].textContent).toContain('Test error');
 
       expect(logs?.[1].classList.contains('warning')).toBe(true);
       expect(logs?.[1].textContent).toContain('Test warning');
 
-      expect(logs?.[2].classList.contains('error')).toBe(true);
-      expect(logs?.[2].textContent).toContain('Test error');
+      expect(logs?.[2].classList.contains('info')).toBe(true);
+      expect(logs?.[2].textContent).toContain('Test info message');
     });
 
     it('should clear logs', () => {
@@ -182,8 +187,8 @@ describe('MCPDevTools', () => {
       const logs = logsContainer?.querySelectorAll('.mcp-log-entry');
       expect(logs?.length).toBe(500);
 
-      // First log should be Message 10 (0-9 were removed)
-      expect(logs?.[0].textContent).toContain('Message 10');
+      // First log should be Message 509 (latest, since we now keep the first 500 logs)
+      expect(logs?.[0].textContent).toContain('Message 509');
     });
 
     it('should handle tool execution logs', () => {
@@ -245,8 +250,8 @@ describe('MCPDevTools', () => {
       // Add a log
       devTools.addLog('info', 'client', 'Test message');
 
-      // Should have scrolled
-      expect(logsContainer.scrollTop).toBe(1000);
+      // Should have scrolled to top (latest items are at the top)
+      expect(logsContainer.scrollTop).toBe(0);
     });
 
     it('should not auto-scroll when checkbox is unchecked', () => {

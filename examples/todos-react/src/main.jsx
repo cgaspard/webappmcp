@@ -4,11 +4,15 @@ import App from './App.jsx';
 import './index.css';
 
 // Initialize WebApp MCP Client
-if (typeof WebAppMCPClient !== 'undefined') {
-  const mcpClient = new WebAppMCPClient({
-    serverUrl: 'ws://localhost:4837',
+if (typeof WebAppMCP !== 'undefined' && WebAppMCP.WebAppMCPClient) {
+  const mcpClient = new WebAppMCP.WebAppMCPClient({
+    serverUrl: 'ws://localhost:4835',
     authToken: 'demo-token',
-    enableDevTools: true
+    enableDevTools: true,
+    autoConnect: true,
+    devToolsTheme: 'dark',
+    devToolsPosition: 'bottom-right',
+    debug: false
   });
   
   mcpClient.connect();

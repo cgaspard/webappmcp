@@ -58,13 +58,13 @@ class WebAppMCPClient {
 
   private log(...args: any[]): void {
     if (this.config.debug) {
-      console.log('[WebAppMCP Client]', ...args);
+      console.log('[webappmcp]', ...args);
     }
   }
 
   private logError(...args: any[]): void {
     // Always log errors regardless of debug setting
-    console.error('[WebAppMCP Client Error]', ...args);
+    console.error('[webappmcp]', ...args);
   }
 
   connect(): void {

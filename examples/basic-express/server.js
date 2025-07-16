@@ -1,9 +1,20 @@
 const express = require('express');
 const path = require('path');
-const { webappMCP } = require('@cgaspard/webappmcp-middleware');
+const { webappMCP } = require('@cgaspard/webappmcp');
 
 const app = express();
 const port = process.env.PORT || 4834;
+
+// Add Express logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[Express] ${timestamp} ${req.method} ${req.url}`);
+  console.log(`[Express] Headers:`, req.headers);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log(`[Express] Body:`, req.body);
+  }
+  next();
+});
 
 // Configure WebApp MCP middleware
 app.use(webappMCP({
@@ -17,7 +28,8 @@ app.use(webappMCP({
     write: true,
     screenshot: true,
     state: true
-  }
+  },
+  debug: false
 }));
 
 // Serve static files
@@ -38,6 +50,6 @@ app.get('/api/data', (req, res) => {
 
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`);
-  console.log(`WebApp MCP WebSocket server at ws://localhost:3101`);
+  console.log(`WebApp MCP WebSocket server at ws://localhost:4835`);
   console.log(`Auth token: ${process.env.MCP_AUTH_TOKEN || 'demo-token'}`);
 });

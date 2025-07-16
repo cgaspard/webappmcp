@@ -296,10 +296,14 @@
   <script>
     // Initialize WebApp MCP Client
     console.log('Initializing WebApp MCP Client...');
-    const mcpClient = new WebAppMCPClient({
+    const mcpClient = new WebAppMCP.WebAppMCPClient({
       serverUrl: 'ws://localhost:4835',
       authToken: 'demo-token',
-      enableDevTools: true
+      enableDevTools: true,
+      autoConnect: true,
+      devToolsTheme: 'dark',
+      devToolsPosition: 'bottom-right',
+      debug: false
     });
     
     console.log('Connecting to WebSocket server...');

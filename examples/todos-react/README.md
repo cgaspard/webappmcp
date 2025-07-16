@@ -38,5 +38,5 @@ npm run serve -- --sse
 ## Ports
 
 - Development: http://localhost:5173
-- Production: http://localhost:4836
-- WebSocket: ws://localhost:4837
+- Production: http://localhost:4834
+- WebSocket: ws://localhost:4835
