@@ -1,9 +1,13 @@
 {
   "name": "@webappmcp/server",
   "version": "0.1.0",
-  "description": "MCP server for web application interaction",
+  "description": "MCP server for web application interaction - standalone server for AI assistants to control web apps",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "bin": {
     "webappmcp-server": "./dist/cli.js"
   },

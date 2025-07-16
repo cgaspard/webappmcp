@@ -1,11 +1,15 @@
 {
   "name": "@webappmcp/client",
   "version": "0.1.0",
-  "description": "Browser client for WebApp MCP integration",
+  "description": "Browser client for WebApp MCP integration - connects web applications to AI assistants",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "browser": "dist/webappmcp-client.min.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "rollup -c",
     "dev": "rollup -c -w",

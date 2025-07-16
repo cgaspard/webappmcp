@@ -316,7 +316,7 @@ export class MCPDevTools {
 
     logsContainer.innerHTML = this.logs.map(log => {
       const time = new Date(log.timestamp).toLocaleTimeString();
-      const dataStr = log.data ? ` ${JSON.stringify(log.data)}` : '';
+      const dataStr = log.data ? ` ${this.safeStringify(log.data)}` : '';
       return `
         <div class="mcp-log-entry ${log.level}">
           <span class="mcp-log-timestamp">[${time}]</span> [${log.source.toUpperCase()}] ${log.message}${dataStr}
@@ -325,6 +325,33 @@ export class MCPDevTools {
     }).join('');
 
     logsContainer.scrollTop = logsContainer.scrollHeight;
+  }
+
+  private safeStringify(obj: any): string {
+    try {
+      // Handle simple types
+      if (obj === null || obj === undefined) {
+        return String(obj);
+      }
+      
+      if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean') {
+        return String(obj);
+      }
+
+      // Handle arrays and objects with circular reference protection
+      const seen = new Set();
+      return JSON.stringify(obj, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular Reference]';
+          }
+          seen.add(value);
+        }
+        return value;
+      });
+    } catch (error) {
+      return `[Error stringifying: ${error instanceof Error ? error.message : 'Unknown error'}]`;
+    }
   }
 
   private clearLogs() {

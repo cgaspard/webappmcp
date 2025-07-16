@@ -229,6 +229,9 @@ class WebAppMCPClient {
         case 'webapp_list_clients':
           result = await this.webappListClients(args);
           break;
+        case 'execute_javascript':
+          result = await this.executeJavascript(args);
+          break;
         default:
           throw new Error(`Unknown tool: ${toolName}`);
       }
@@ -714,6 +717,44 @@ class WebAppMCPClient {
         timestamp: new Date().toISOString()
       }]
     };
+  }
+
+  private async executeJavascript(args: any): Promise<any> {
+    const { code, returnValue = false, async = false } = args;
+    
+    if (!code) {
+      throw new Error('JavaScript code is required');
+    }
+
+    try {
+      let result;
+      
+      if (async) {
+        // Execute asynchronously
+        if (returnValue) {
+          result = await eval(`(async () => { return ${code}; })()`);
+        } else {
+          result = await eval(`(async () => { ${code}; })()`);
+        }
+      } else {
+        // Execute synchronously
+        if (returnValue) {
+          result = eval(`(() => { return ${code}; })()`);
+        } else {
+          eval(code);
+          result = undefined;
+        }
+      }
+
+      return { 
+        success: true, 
+        result: result !== undefined ? result : null,
+        message: 'JavaScript executed successfully',
+        executionTime: new Date().toISOString()
+      };
+    } catch (error) {
+      throw new Error(`JavaScript execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 }
 

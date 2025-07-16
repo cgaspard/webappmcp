@@ -4,6 +4,7 @@ import { interactionTools } from './interaction.js';
 import { captureTools } from './capture.js';
 import { stateTools } from './state.js';
 import { diagnosticTools } from './diagnostic.js';
+import { executeTools } from './execute.js';
 
 export function registerTools(): ToolDefinition[] {
   return [
@@ -12,5 +13,6 @@ export function registerTools(): ToolDefinition[] {
     ...captureTools,
     ...stateTools,
     ...diagnosticTools,
+    ...executeTools,
   ];
 }

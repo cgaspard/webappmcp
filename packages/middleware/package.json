@@ -1,9 +1,13 @@
 {
   "name": "@webappmcp/middleware",
   "version": "0.1.0",
-  "description": "Express middleware for WebApp MCP integration",
+  "description": "Express middleware for WebApp MCP integration - enables AI assistants to interact with web applications",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",

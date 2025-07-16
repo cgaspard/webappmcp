@@ -147,7 +147,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
         console.log(`SSE endpoint will be available at: ${mcpEndpointPath}`);
         console.log(`WebSocket URL: ws://${wsHost === '0.0.0.0' ? 'localhost' : wsHost}:${wsPort}`);
         console.log(`Auth token: ${authentication.token}`);
-        
+
         mcpSSEServer = new MCPSSEServer({
           wsUrl: `ws://${wsHost === '0.0.0.0' ? 'localhost' : wsHost}:${wsPort}`,
           authToken: authentication.token,
@@ -165,7 +165,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           await mcpSSEServer.initialize();
           console.log('✅ SSE MCP transport initialized successfully');
           console.log(`✅ SSE endpoint registered at: ${mcpEndpointPath}`);
-          console.log('✅ Ready to accept Claude CLI connections');
+          console.log('✅ Ready to accept MCP connections');
         } catch (error) {
           console.error('❌ Failed to initialize MCP SSE server:', error);
         }
@@ -184,7 +184,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
             }));
           },
         });
-        
+
         try {
           await mcpSocketServer.start();
           console.log('Unix socket MCP transport started successfully');
@@ -287,7 +287,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
       console.log(`[Middleware] Request to MCP SSE endpoint: ${req.method} ${req.path}`);
       console.log(`[Middleware] Transport mode: ${transport}`);
       console.log(`[Middleware] SSE Server initialized: ${mcpSSEServer ? 'Yes' : 'No'}`);
-      
+
       if (!mcpSSEServer) {
         console.log(`[Middleware] ERROR: MCP SSE server not initialized`);
         return res.status(503).json({ error: 'MCP SSE server not initialized' });
