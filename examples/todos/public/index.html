@@ -272,7 +272,7 @@
       
       <div class="todo-footer">
         <span id="items-left">0 items left</span>
-        <button id="clear-completed">Clear completed</button>
+        <button id="clear-completed">Remove Completed</button>
       </div>
     </div>
     
@@ -298,7 +298,8 @@
     console.log('Initializing WebApp MCP Client...');
     const mcpClient = new WebAppMCPClient({
       serverUrl: 'ws://localhost:4835',
-      authToken: 'demo-token'
+      authToken: 'demo-token',
+      enableDevTools: true
     });
     
     console.log('Connecting to WebSocket server...');

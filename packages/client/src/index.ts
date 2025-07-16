@@ -1,8 +1,11 @@
+import { MCPDevTools } from './devtools';
+
 interface WebAppMCPClientConfig {
   serverUrl: string;
   authToken?: string;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
+  enableDevTools?: boolean;
 }
 
 class WebAppMCPClient {
@@ -13,6 +16,7 @@ class WebAppMCPClient {
   private messageHandlers = new Map<string, (data: any) => void>();
   private consoleLogs: any[] = [];
   private _isConnected = false;
+  private devTools: MCPDevTools | null = null;
   
   get isConnected(): boolean {
     return this._isConnected && this.ws?.readyState === WebSocket.OPEN;
@@ -22,15 +26,24 @@ class WebAppMCPClient {
     this.config = {
       reconnectInterval: 5000,
       maxReconnectAttempts: 10,
+      enableDevTools: true,
       ...config,
     };
     this.setupConsoleInterception();
+    
+    if (this.config.enableDevTools) {
+      this.devTools = new MCPDevTools();
+      this.devTools.setConnectionStatus('disconnected');
+    }
   }
 
   connect(): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       return;
     }
+
+    this.devTools?.setConnectionStatus('connecting');
+    this.devTools?.logWebSocketEvent('Attempting to connect', { url: this.config.serverUrl });
 
     try {
       const url = new URL(this.config.serverUrl);
@@ -50,6 +63,7 @@ class WebAppMCPClient {
       this.setupWebSocketHandlers();
     } catch (error) {
       console.error('Failed to connect to WebApp MCP server:', error);
+      this.devTools?.logError('websocket', 'Failed to connect', error);
       this.scheduleReconnect();
     }
   }
@@ -73,6 +87,8 @@ class WebAppMCPClient {
       console.log('Connected to WebApp MCP server');
       this._isConnected = true;
       this.reconnectAttempts = 0;
+      this.devTools?.setConnectionStatus('connected');
+      this.devTools?.logWebSocketEvent('Connected to WebApp MCP server');
       this.sendMessage({
         type: 'init',
         url: window.location.href,
@@ -82,19 +98,24 @@ class WebAppMCPClient {
     this.ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
+        this.devTools?.logWebSocketEvent('Message received', message);
         this.handleMessage(message);
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error);
+        this.devTools?.logError('websocket', 'Failed to parse message', error);
       }
     };
 
     this.ws.onerror = (error) => {
       console.error('WebSocket error:', error);
+      this.devTools?.logError('websocket', 'WebSocket error', error);
     };
 
     this.ws.onclose = () => {
       console.log('Disconnected from WebApp MCP server');
       this._isConnected = false;
+      this.devTools?.setConnectionStatus('disconnected');
+      this.devTools?.logWebSocketEvent('Disconnected from WebApp MCP server');
       this.scheduleReconnect();
     };
   }
@@ -132,11 +153,13 @@ class WebAppMCPClient {
 
     if (type === 'connected') {
       console.log('WebApp MCP client registered:', message.clientId);
+      this.devTools?.logMCPEvent('Client registered', { clientId: message.clientId });
       return;
     }
 
     if (type === 'execute_tool') {
       console.log(`[WebApp Client] Executing tool: ${tool} with requestId: ${requestId}`);
+      this.devTools?.logMCPEvent(`Executing tool: ${tool}`, { requestId, args });
       this.executeToolHandler(requestId, tool, args);
       return;
     }
@@ -197,11 +220,21 @@ class WebAppMCPClient {
         case 'console_get_logs':
           result = await this.consoleGetLogs(args);
           break;
+        case 'dom_manipulate':
+          result = await this.domManipulate(args);
+          break;
+        case 'javascript_inject':
+          result = await this.javascriptInject(args);
+          break;
+        case 'webapp_list_clients':
+          result = await this.webappListClients(args);
+          break;
         default:
           throw new Error(`Unknown tool: ${toolName}`);
       }
 
       console.log(`[WebApp Client] Tool execution successful, sending response`);
+      this.devTools?.logMCPEvent(`Tool ${toolName} executed successfully`, { requestId, result });
       this.sendMessage({
         type: 'tool_response',
         requestId,
@@ -209,6 +242,7 @@ class WebAppMCPClient {
       });
     } catch (error) {
       console.error(`[WebApp Client] Tool execution failed:`, error);
+      this.devTools?.logError('mcp', `Tool ${toolName} execution failed`, error);
       this.sendMessage({
         type: 'tool_response',
         requestId,
@@ -560,6 +594,126 @@ class WebAppMCPClient {
     }
 
     return { logs: logs.slice(-limit) };
+  }
+
+  private async domManipulate(args: any): Promise<any> {
+    const { action, selector, value, attribute, property } = args;
+    
+    if (!selector) {
+      throw new Error('Selector is required for DOM manipulation');
+    }
+
+    const element = document.querySelector(selector) as HTMLElement;
+    if (!element) {
+      throw new Error(`Element not found: ${selector}`);
+    }
+
+    switch (action) {
+      case 'setAttribute':
+        if (!attribute || value === undefined) {
+          throw new Error('Attribute name and value are required for setAttribute');
+        }
+        element.setAttribute(attribute, value);
+        return { success: true, message: `Set attribute ${attribute}="${value}" on ${selector}` };
+
+      case 'removeAttribute':
+        if (!attribute) {
+          throw new Error('Attribute name is required for removeAttribute');
+        }
+        element.removeAttribute(attribute);
+        return { success: true, message: `Removed attribute ${attribute} from ${selector}` };
+
+      case 'setProperty':
+        if (!property || value === undefined) {
+          throw new Error('Property name and value are required for setProperty');
+        }
+        (element as any)[property] = value;
+        return { success: true, message: `Set property ${property}=${value} on ${selector}` };
+
+      case 'addClass':
+        if (!value) {
+          throw new Error('Class name is required for addClass');
+        }
+        element.classList.add(value);
+        return { success: true, message: `Added class "${value}" to ${selector}` };
+
+      case 'removeClass':
+        if (!value) {
+          throw new Error('Class name is required for removeClass');
+        }
+        element.classList.remove(value);
+        return { success: true, message: `Removed class "${value}" from ${selector}` };
+
+      case 'setInnerHTML':
+        if (value === undefined) {
+          throw new Error('HTML content is required for setInnerHTML');
+        }
+        element.innerHTML = value;
+        return { success: true, message: `Set innerHTML on ${selector}` };
+
+      case 'setTextContent':
+        if (value === undefined) {
+          throw new Error('Text content is required for setTextContent');
+        }
+        element.textContent = value;
+        return { success: true, message: `Set textContent on ${selector}` };
+
+      case 'setStyle':
+        if (!property || value === undefined) {
+          throw new Error('Style property and value are required for setStyle');
+        }
+        (element.style as any)[property] = value;
+        return { success: true, message: `Set style ${property}=${value} on ${selector}` };
+
+      case 'remove':
+        element.remove();
+        return { success: true, message: `Removed element ${selector}` };
+
+      default:
+        throw new Error(`Unknown DOM manipulation action: ${action}`);
+    }
+  }
+
+  private async javascriptInject(args: any): Promise<any> {
+    const { code, returnValue = false } = args;
+    
+    if (!code) {
+      throw new Error('JavaScript code is required');
+    }
+
+    try {
+      let result;
+      if (returnValue) {
+        // Use eval to return a value
+        result = eval(code);
+      } else {
+        // Use Function constructor for execution without return
+        const func = new Function(code);
+        result = func();
+      }
+
+      return { 
+        success: true, 
+        result: result !== undefined ? result : null,
+        message: 'JavaScript executed successfully'
+      };
+    } catch (error) {
+      throw new Error(`JavaScript execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private async webappListClients(args: any): Promise<any> {
+    // This returns information about the current client
+    return {
+      clients: [{
+        id: 'browser-client',
+        type: 'browser',
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        connected: this.isConnected,
+        timestamp: new Date().toISOString()
+      }]
+    };
   }
 }
 
