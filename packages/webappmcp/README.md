@@ -75,9 +75,33 @@ client.connect();
 webappmcp-server --port 3100 --ws-port 3101
 ```
 
+## Plugins
+
+WebApp MCP uses a modular plugin architecture. Framework-specific functionality is available through separate npm packages:
+
+### Available Plugins
+
+- **[@cgaspard/webappmcp-vue](https://www.npmjs.com/package/@cgaspard/webappmcp-vue)** - Vue.js and Vue Router integration
+- **[@cgaspard/webappmcp-react](https://www.npmjs.com/package/@cgaspard/webappmcp-react)** - React, React Router, and Next.js integration
+
+### Using Plugins
+
+```javascript
+const { webappMCP } = require('@cgaspard/webappmcp');
+const vuePlugin = require('@cgaspard/webappmcp-vue').default;
+
+app.use(webappMCP({
+  wsPort: 4835,
+  transport: 'sse',
+  plugins: [vuePlugin]
+}));
+```
+
+See the [Plugin Architecture documentation](../../docs/plugin-architecture.md) for details on creating custom plugins.
+
 ## Features
 
-### MCP Tools Available
+### Core MCP Tools
 
 - **DOM Operations**
   - `dom_query` - Find elements using CSS selectors

@@ -23,6 +23,7 @@ class WebAppMCPClient {
   private consoleLogs: any[] = [];
   private _isConnected = false;
   private devTools: MCPDevTools | null = null;
+  private pluginHandlers: Record<string, (args: any) => Promise<any>> = {};
   
   get isConnected(): boolean {
     return this._isConnected && this.ws?.readyState === WebSocket.OPEN;
@@ -178,6 +179,7 @@ class WebAppMCPClient {
   private sendMessage(message: any): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
+      this.devTools?.logWebSocketEvent('Message sent', message);
     } else {
       this.logError('WebSocket is not connected');
     }
@@ -197,6 +199,12 @@ class WebAppMCPClient {
       this.log(`[WebApp Client] Executing tool: ${tool} with requestId: ${requestId}`);
       this.devTools?.logMCPEvent(`Executing tool: ${tool}`, { requestId, args });
       this.executeToolHandler(requestId, tool, args);
+      return;
+    }
+
+    if (type === 'plugin_extension') {
+      this.log(`[WebApp Client] Loading plugin extension`);
+      this.loadPluginExtension(message.extension);
       return;
     }
 
@@ -288,7 +296,12 @@ class WebAppMCPClient {
           result = await this.executeJavascript(args);
           break;
         default:
-          throw new Error(`Unknown tool: ${toolName}`);
+          // Check if this is a plugin-provided tool
+          if (this.pluginHandlers && this.pluginHandlers[toolName]) {
+            result = await this.pluginHandlers[toolName](args);
+          } else {
+            throw new Error(`Unknown tool: ${toolName}`);
+          }
       }
 
       const executionTime = Date.now() - startTime;
@@ -815,6 +828,26 @@ class WebAppMCPClient {
     } catch (error) {
       throw new Error(`JavaScript execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  private loadPluginExtension(extension: any): void {
+    try {
+      // Execute the plugin code
+      const pluginCode = `
+        (function() {
+          ${extension.code}
+        })();
+      `;
+      eval(pluginCode);
+      this.log(`[WebApp Client] Plugin extension loaded successfully`);
+    } catch (error) {
+      this.logError(`[WebApp Client] Failed to load plugin extension:`, error);
+    }
+  }
+
+  registerPluginHandler(toolName: string, handler: (args: any) => Promise<any>): void {
+    this.pluginHandlers[toolName] = handler;
+    this.log(`[WebApp Client] Registered plugin handler for tool: ${toolName}`);
   }
 }
 

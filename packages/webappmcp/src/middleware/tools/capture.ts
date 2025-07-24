@@ -3,7 +3,7 @@ import { ToolDefinition } from '../types.js';
 export const captureTools: ToolDefinition[] = [
   {
     name: 'capture_screenshot',
-    description: 'Take a screenshot of the current page',
+    description: 'Take a screenshot of the currently displayed page in the live web application',
     inputSchema: {
       type: 'object',
       properties: {
@@ -27,7 +27,7 @@ export const captureTools: ToolDefinition[] = [
   },
   {
     name: 'capture_element_screenshot',
-    description: 'Take a screenshot of a specific element',
+    description: 'Take a screenshot of a specific element in the running web application',
     inputSchema: {
       type: 'object',
       properties: {

@@ -6,11 +6,13 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { registerTools } from './tools/index.js';
 import { Request, Response } from 'express';
+import { WebAppMCPPlugin, PluginContext } from './index.js';
 
 export interface MCPSSEConfig {
   getClients?: () => Array<{ id: string; url: string; connectedAt: Date; type: string }>;
   executeTool?: (toolName: string, args: any) => Promise<any>;
   debug?: boolean;
+  plugins?: WebAppMCPPlugin[];
 }
 
 export class MCPSSEServer {
@@ -18,11 +20,13 @@ export class MCPSSEServer {
   private getClients?: () => Array<{ id: string; url: string; connectedAt: Date; type: string }>;
   private executeTool?: (toolName: string, args: any) => Promise<any>;
   private debug: boolean;
+  private plugins: WebAppMCPPlugin[];
 
   constructor(config: MCPSSEConfig) {
     this.getClients = config.getClients;
     this.executeTool = config.executeTool;
     this.debug = config.debug ?? false;
+    this.plugins = config.plugins ?? [];
   }
 
   private log(...args: any[]): void {
@@ -41,20 +45,36 @@ export class MCPSSEServer {
       {
         name: 'webapp-mcp-sse',
         version: '0.1.0',
+        description: 'MCP server connected to a running web application instance. This server provides direct access to the DOM, state, and functionality of the currently connected web app.',
       },
       {
         capabilities: {
           tools: {},
+          prompts: {},
         },
       }
     );
 
     server.setRequestHandler(ListToolsRequestSchema, async () => {
       this.log(`ListTools request received`);
-      const tools = registerTools();
-      this.log(`Returning ${tools.length} tools`);
+      const builtInTools = registerTools();
+      
+      // Convert plugin tools to MCP format
+      const pluginTools = this.plugins.flatMap(plugin => 
+        (plugin.tools || []).map(tool => ({
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema || {
+            type: 'object' as const,
+            properties: {},
+          },
+        }))
+      );
+      
+      const allTools = [...builtInTools, ...pluginTools];
+      this.log(`Returning ${allTools.length} tools (${builtInTools.length} built-in, ${pluginTools.length} from plugins)`);
       return {
-        tools: tools,
+        tools: allTools,
       };
     });
 
@@ -81,6 +101,42 @@ export class MCPSSEServer {
         };
         this.log(`webapp_list_clients result:`, JSON.stringify(result, null, 2));
         return result;
+      }
+      
+      // Check if this is a plugin tool
+      for (const plugin of this.plugins) {
+        const pluginTool = plugin.tools?.find(t => t.name === name);
+        if (pluginTool) {
+          this.log(`Executing plugin tool ${name} from plugin ${plugin.name}`);
+          try {
+            const context: PluginContext = {
+              executeClientTool: this.executeTool || (async () => { throw new Error('Client tool execution not available'); }),
+              getClients: this.getClients || (() => []),
+              log: this.log.bind(this),
+            };
+            
+            const result = await pluginTool.handler(args || {}, context);
+            this.log(`Plugin tool ${name} execution completed`);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
+                },
+              ],
+            };
+          } catch (error) {
+            this.log(`Plugin tool ${name} execution failed:`, error);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Error executing plugin tool: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                },
+              ],
+            };
+          }
+        }
       }
       
       if (!this.executeTool) {

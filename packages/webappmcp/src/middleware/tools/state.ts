@@ -3,7 +3,7 @@ import { ToolDefinition } from '../types.js';
 export const stateTools: ToolDefinition[] = [
   {
     name: 'state_get_variable',
-    description: 'Get the value of a JavaScript variable from the page context',
+    description: 'Get the current value of a JavaScript variable from the live web application context',
     inputSchema: {
       type: 'object',
       properties: {
@@ -17,7 +17,7 @@ export const stateTools: ToolDefinition[] = [
   },
   {
     name: 'state_local_storage',
-    description: 'Read or write to localStorage',
+    description: 'Read or write to the localStorage of the currently connected web application',
     inputSchema: {
       type: 'object',
       properties: {
@@ -40,7 +40,7 @@ export const stateTools: ToolDefinition[] = [
   },
   {
     name: 'console_get_logs',
-    description: 'Retrieve console logs from the page',
+    description: 'Retrieve real-time console logs from the running web application',
     inputSchema: {
       type: 'object',
       properties: {
@@ -60,7 +60,7 @@ export const stateTools: ToolDefinition[] = [
   },
   {
     name: 'webapp_list_clients',
-    description: 'List all connected browser clients/sessions',
+    description: 'List all browser clients/sessions currently connected to this web application instance',
     inputSchema: {
       type: 'object',
       properties: {},

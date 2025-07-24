@@ -6,6 +6,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { IntegratedMCPServer } from './mcp-server.js';
 import { MCPSSEServer } from './mcp-sse-server.js';
 import { MCPSocketServer } from './mcp-socket-server.js';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
 
 export interface WebAppMCPConfig {
   wsPort?: number;
@@ -25,6 +28,55 @@ export interface WebAppMCPConfig {
   transport?: 'sse' | 'stdio' | 'socket' | 'none';  // MCP transport mode (defaults to 'sse')
   socketPath?: string;  // Unix socket path (only used when transport is 'socket')
   debug?: boolean;  // Enable debug logging (defaults to false)
+  plugins?: WebAppMCPPlugin[];  // Custom application plugins
+}
+
+export interface WebAppMCPPlugin {
+  name: string;
+  description?: string;
+  version?: string;
+  
+  // Server-side tools
+  tools?: PluginTool[];
+  
+  // Client-side extensions
+  clientExtensions?: ClientExtension[];
+  
+  // Initialization hook
+  initialize?: (context: PluginInitContext) => Promise<void>;
+}
+
+export interface PluginTool {
+  name: string;
+  description: string;
+  inputSchema?: {
+    type: 'object';
+    properties?: Record<string, any>;
+    required?: string[];
+  };
+  handler: (args: any, context: PluginContext) => Promise<any>;
+}
+
+export interface ClientExtension {
+  // JavaScript code to inject into the client
+  code: string;
+  
+  // When to inject (on connection, or on demand)
+  timing?: 'onConnect' | 'onDemand';
+  
+  // Dependencies this extension requires
+  dependencies?: string[];
+}
+
+export interface PluginContext {
+  executeClientTool: (toolName: string, args: any, clientId?: string) => Promise<any>;
+  getClients: () => { id: string; url: string; connectedAt: Date; type: string }[];
+  log: (...args: any[]) => void;
+}
+
+export interface PluginInitContext {
+  log: (...args: any[]) => void;
+  config: WebAppMCPConfig;
 }
 
 export interface ClientInfo {
@@ -53,6 +105,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
     },
     mcpEndpointPath = '/mcp/sse',
     debug = false,  // Default to no debug logging
+    plugins = [],  // Default to no plugins
   } = config;
 
   // Logger helper that respects debug setting
@@ -70,6 +123,9 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
   const clients = new Map<string, ClientInfo>();
   let wss: WebSocketServer | null = null;
   let mcpSSEServer: MCPSSEServer | null = null;
+
+  // Store reference to execute tools
+  let executeToolFunction: ((toolName: string, args: any, clientId?: string) => Promise<any>) | null = null;
 
   // Create WebSocket server immediately, not in middleware
   const server = createServer();
@@ -133,6 +189,25 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
       clientId,
       permissions,
     }));
+
+    // Send plugin extensions to the client
+    for (const plugin of plugins) {
+      if (plugin.clientExtensions) {
+        for (const extension of plugin.clientExtensions) {
+          if (extension.timing === 'onConnect' || !extension.timing) {
+            log(`Sending client extension from plugin ${plugin.name} to client ${clientId}`);
+            ws.send(JSON.stringify({
+              type: 'plugin_extension',
+              extension: {
+                pluginName: plugin.name,
+                code: extension.code,
+                dependencies: extension.dependencies,
+              },
+            }));
+          }
+        }
+      }
+    }
   });
 
   // Start the WebSocket server if not already listening
@@ -175,6 +250,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
             }));
           },
           executeTool: executeToolFunction || undefined,
+          plugins: plugins,
         });
 
         try {
@@ -223,12 +299,8 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
     });
   }
 
-  // Store reference to execute tools
-  let executeToolFunction: ((toolName: string, args: any, clientId?: string) => Promise<any>) | null = null;
-
   // Always set up tool execution for integrated MCP servers
-  {
-    executeToolFunction = async (toolName: string, args: any, clientId?: string) => {
+  executeToolFunction = async (toolName: string, args: any, clientId?: string) => {
       let targetClient: ClientInfo | undefined;
 
       if (clientId) {
@@ -262,7 +334,51 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
             if (message.error) {
               reject(new Error(message.error));
             } else {
-              resolve(message.result);
+              // Handle screenshot tools specially - save to file
+              if (toolName === 'capture_screenshot' || toolName === 'capture_element_screenshot') {
+                const saveScreenshot = async () => {
+                  try {
+                    const result = message.result;
+                    if (result && result.dataUrl) {
+                      // Extract base64 data from data URL
+                      const matches = result.dataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+                      if (matches) {
+                        const format = matches[1];
+                        const base64Data = matches[2];
+                        
+                        // Create temp directory for screenshots
+                        const tempDir = path.join(os.tmpdir(), 'webappmcp-screenshots');
+                        await fs.mkdir(tempDir, { recursive: true });
+                        
+                        // Generate filename with timestamp
+                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                        const filename = `screenshot-${timestamp}.${format}`;
+                        const filepath = path.join(tempDir, filename);
+                        
+                        // Write file
+                        await fs.writeFile(filepath, Buffer.from(base64Data, 'base64'));
+                        
+                        // Return path instead of data URL
+                        resolve({
+                          ...result,
+                          path: filepath,
+                          dataUrl: undefined // Remove dataUrl from response
+                        });
+                      } else {
+                        resolve(result);
+                      }
+                    } else {
+                      resolve(result);
+                    }
+                  } catch (error) {
+                    log('Error saving screenshot:', error);
+                    resolve(message.result); // Fall back to original result
+                  }
+                };
+                saveScreenshot();
+              } else {
+                resolve(message.result);
+              }
             }
           }
         };
@@ -277,7 +393,6 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
         }));
       });
     };
-  }
 
   return (req: Request, res: Response, next: NextFunction) => {
 

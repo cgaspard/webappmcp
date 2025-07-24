@@ -1,6 +1,14 @@
 // Middleware exports
 export { webappMCP } from './middleware/index';
-export type { WebAppMCPConfig, ClientInfo } from './middleware/index';
+export type { 
+  WebAppMCPConfig, 
+  ClientInfo,
+  WebAppMCPPlugin,
+  PluginTool,
+  PluginContext,
+  PluginInitContext,
+  ClientExtension
+} from './middleware/index';
 
 // Client exports  
 export { default as WebAppMCPClient } from './client/index';

@@ -72,6 +72,8 @@ if (typeof document === 'undefined') {
   global.window = dom.window as any;
   global.navigator = dom.window.navigator;
   global.HTMLElement = dom.window.HTMLElement;
+  global.MouseEvent = dom.window.MouseEvent;
+  global.Event = dom.window.Event;
   global.localStorage = {
     getItem: jest.fn(),
     setItem: jest.fn(),
@@ -80,6 +82,12 @@ if (typeof document === 'undefined') {
     length: 0,
     key: jest.fn()
   };
+}
+
+// Mock Express request/response objects for middleware tests
+if (!global.Request) {
+  global.Request = class Request {} as any;
+  global.Response = class Response {} as any;
 }
 
 // Increase timeout for integration tests

@@ -1,14 +1,14 @@
 import express from 'express';
-import request from 'supertest';
 import { WebSocketServer } from 'ws';
 import { webappMCP } from '../../src/middleware/index';
 
-// Mock WebSocketServer
+// Mock modules
+jest.mock('express');
 jest.mock('ws');
 jest.mock('http', () => ({
   createServer: jest.fn(() => ({
     listen: jest.fn((port, host, callback) => {
-      callback();
+      if (callback) callback();
       return { on: jest.fn() };
     })
   }))
@@ -65,15 +65,22 @@ describe('WebApp MCP Middleware', () => {
           write: false,
           screenshot: true,
           state: false
-        }
+        },
+        transport: 'none'
       });
-      app.use(middleware);
-
-      const response = await request(app)
-        .get('/__webappmcp/status')
-        .expect(200);
-
-      expect(response.body).toEqual({
+      
+      // Create mock request and response
+      const req = { path: '/__webappmcp/status' } as any;
+      const res = {
+        json: jest.fn(),
+        status: jest.fn().mockReturnThis()
+      } as any;
+      const next = jest.fn();
+      
+      // Call middleware directly
+      middleware(req, res, next);
+      
+      expect(res.json).toHaveBeenCalledWith({
         connected: 0,
         permissions: {
           read: true,
@@ -88,30 +95,44 @@ describe('WebApp MCP Middleware', () => {
 
   describe('Clients endpoint', () => {
     it('should return empty client list initially', async () => {
-      const middleware = webappMCP();
-      app.use(middleware);
-
-      const response = await request(app)
-        .get('/__webappmcp/clients')
-        .expect(200);
-
-      expect(response.body).toEqual({ clients: [] });
+      const middleware = webappMCP({ transport: 'none' });
+      
+      // Create mock request and response
+      const req = { path: '/__webappmcp/clients', method: 'GET' } as any;
+      const res = {
+        json: jest.fn(),
+        status: jest.fn().mockReturnThis()
+      } as any;
+      const next = jest.fn();
+      
+      // Call middleware directly
+      middleware(req, res, next);
+      
+      expect(res.json).toHaveBeenCalledWith({ clients: [] });
     });
   });
 
   describe('Tools endpoint', () => {
     it('should list available tools', async () => {
-      const middleware = webappMCP();
-      app.use(middleware);
-
-      const response = await request(app)
-        .get('/__webappmcp/tools')
-        .expect(200);
-
-      expect(response.body.tools).toContain('dom_query');
-      expect(response.body.tools).toContain('interaction_click');
-      expect(response.body.tools).toContain('capture_screenshot');
-      expect(response.body.tools.length).toBeGreaterThan(10);
+      const middleware = webappMCP({ transport: 'none' });
+      
+      // Create mock request and response
+      const req = { path: '/__webappmcp/tools', method: 'GET' } as any;
+      const res = {
+        json: jest.fn(),
+        status: jest.fn().mockReturnThis()
+      } as any;
+      const next = jest.fn();
+      
+      // Call middleware directly
+      middleware(req, res, next);
+      
+      expect(res.json).toHaveBeenCalled();
+      const response = res.json.mock.calls[0][0];
+      expect(response.tools).toContain('dom_query');
+      expect(response.tools).toContain('interaction_click');
+      expect(response.tools).toContain('capture_screenshot');
+      expect(response.tools.length).toBeGreaterThan(10);
     });
   });
 
@@ -217,7 +238,7 @@ describe('WebApp MCP Middleware', () => {
       app.use(middleware);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[WebAppMCP]'),
+        expect.stringContaining('[webappmcp]'),
         expect.any(String)
       );
     });

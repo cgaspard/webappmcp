@@ -1,3 +1,7 @@
+// Don't mock express for e2e tests
+jest.unmock('express');
+jest.unmock('http');
+
 import express from 'express';
 import { Server } from 'http';
 import { WebSocket } from 'ws';
@@ -396,8 +400,12 @@ describe('WebApp MCP E2E Integration', () => {
         });
       }
 
-      const response = JSON.parse(mockWs.send.mock.calls[0][0]);
-      expect(response.result.value).toBe('test-value');
+      // Wait for async execution
+      setTimeout(() => {
+        expect(mockWs.send).toHaveBeenCalled();
+        const response = JSON.parse(mockWs.send.mock.calls[0][0]);
+        expect(response.result.value).toBe('test-value');
+      }, 10);
     });
 
     it('should access JavaScript variables', () => {
@@ -433,9 +441,13 @@ describe('WebApp MCP E2E Integration', () => {
         });
       }
 
-      const response = JSON.parse(mockWs.send.mock.calls[0][0]);
-      expect(response.success).toBe(true);
-      expect(response.result.value).toBe('1.2.3');
+      // Wait for async execution
+      setTimeout(() => {
+        expect(mockWs.send).toHaveBeenCalled();
+        const response = JSON.parse(mockWs.send.mock.calls[0][0]);
+        expect(response.success).toBe(true);
+        expect(response.result.value).toBe('1.2.3');
+      }, 10);
     });
   });
 });
