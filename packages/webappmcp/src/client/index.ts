@@ -48,6 +48,9 @@ class WebAppMCPClient {
       this.setupConsoleInterception();
     }
     
+    // Auto-load html2canvas for screenshot functionality
+    this.loadHtml2Canvas();
+    
     if (this.config.enableDevTools && this.config.enableConnection) {
       this.devTools = new MCPDevTools({
         position: this.config.devToolsPosition,
@@ -327,6 +330,28 @@ class WebAppMCPClient {
     }
   }
 
+  private loadHtml2Canvas(): void {
+    // Check if html2canvas is already loaded
+    if (typeof (window as any).html2canvas !== 'undefined') {
+      return;
+    }
+    
+    // Create script element
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.async = true;
+    script.onload = () => {
+      if (this.config.debug) {
+        console.log('[WebAppMCP] html2canvas loaded successfully');
+      }
+    };
+    script.onerror = () => {
+      console.warn('[WebAppMCP] Failed to load html2canvas - screenshots will use fallback mode');
+    };
+    
+    document.head.appendChild(script);
+  }
+
   private setupConsoleInterception(): void {
     const originalConsole = {
       log: console.log,
@@ -531,32 +556,93 @@ class WebAppMCPClient {
     const { fullPage = true, format = 'png' } = args;
     
     try {
-      // For now, we'll use a simple approach that captures the visible viewport
-      // In a production environment, you'd want to use html2canvas or similar
+      // Use a more sophisticated approach to capture actual content
+      const width = fullPage ? Math.max(
+        document.documentElement.scrollWidth,
+        document.body.scrollWidth,
+        document.documentElement.offsetWidth,
+        document.body.offsetWidth,
+        document.documentElement.clientWidth
+      ) : window.innerWidth;
+      
+      const height = fullPage ? Math.max(
+        document.documentElement.scrollHeight,
+        document.body.scrollHeight,
+        document.documentElement.offsetHeight,
+        document.body.offsetHeight,
+        document.documentElement.clientHeight
+      ) : window.innerHeight;
+
+      // Create a canvas to draw the content
       const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext('2d');
       
       if (!ctx) {
         throw new Error('Failed to create canvas context');
       }
 
-      // Get dimensions
-      const width = fullPage ? document.documentElement.scrollWidth : window.innerWidth;
-      const height = fullPage ? document.documentElement.scrollHeight : window.innerHeight;
+      // Try to use html2canvas if available
+      if (typeof (window as any).html2canvas !== 'undefined') {
+        const html2canvas = (window as any).html2canvas;
+        const capturedCanvas = await html2canvas(document.body, {
+          width: width,
+          height: height,
+          windowWidth: width,
+          windowHeight: height,
+          x: 0,
+          y: 0,
+          scrollX: fullPage ? 0 : window.scrollX,
+          scrollY: fullPage ? 0 : window.scrollY,
+          useCORS: true,
+          allowTaint: true
+        });
+        
+        const dataUrl = capturedCanvas.toDataURL(`image/${format}`);
+        
+        return {
+          success: true,
+          dataUrl,
+          width,
+          height,
+          message: 'Screenshot captured successfully'
+        };
+      }
       
-      canvas.width = width;
-      canvas.height = height;
-
-      // Draw a placeholder for now
-      // In production, you'd use html2canvas or similar library
-      ctx.fillStyle = '#f0f0f0';
+      // Fallback: Create a more detailed representation
+      // This is still a fallback but provides more information than a blank placeholder
+      
+      // Fill background
+      const bgColor = window.getComputedStyle(document.body).backgroundColor || '#ffffff';
+      ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, width, height);
-      ctx.fillStyle = '#333';
-      ctx.font = '20px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('Screenshot placeholder - implement with html2canvas', width/2, height/2);
       
-      // Convert to data URL
+      // Add some context about the page
+      ctx.fillStyle = '#666';
+      ctx.font = '14px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      
+      const info = [
+        `Page Title: ${document.title}`,
+        `URL: ${window.location.href}`,
+        `Dimensions: ${width}x${height}`,
+        '',
+        'Note: For full screenshot functionality, include html2canvas library:',
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>'
+      ];
+      
+      let y = 30;
+      info.forEach(line => {
+        ctx.fillText(line, 20, y);
+        y += 25;
+      });
+      
+      // Draw a border
+      ctx.strokeStyle = '#ddd';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, width - 2, height - 2);
+      
       const dataUrl = canvas.toDataURL(`image/${format}`);
       
       return {
@@ -564,7 +650,7 @@ class WebAppMCPClient {
         dataUrl,
         width,
         height,
-        message: 'Screenshot captured (placeholder - integrate html2canvas for full implementation)'
+        message: 'Screenshot captured (basic mode - add html2canvas for full rendering)'
       };
     } catch (error) {
       throw new Error(`Failed to capture screenshot: ${error}`);
@@ -578,13 +664,41 @@ class WebAppMCPClient {
       throw new Error('Selector is required for element screenshot');
     }
 
-    const element = document.querySelector(selector);
+    const element = document.querySelector(selector) as HTMLElement;
     if (!element) {
       throw new Error(`Element not found: ${selector}`);
     }
 
     try {
       const rect = element.getBoundingClientRect();
+      
+      // Try to use html2canvas if available
+      if (typeof (window as any).html2canvas !== 'undefined') {
+        const html2canvas = (window as any).html2canvas;
+        const capturedCanvas = await html2canvas(element, {
+          width: rect.width,
+          height: rect.height,
+          x: rect.left + window.scrollX,
+          y: rect.top + window.scrollY,
+          scrollX: -rect.left,
+          scrollY: -rect.top,
+          useCORS: true,
+          allowTaint: true
+        });
+        
+        const dataUrl = capturedCanvas.toDataURL(`image/${format}`);
+        
+        return {
+          success: true,
+          dataUrl,
+          width: rect.width,
+          height: rect.height,
+          selector,
+          message: 'Element screenshot captured successfully'
+        };
+      }
+      
+      // Fallback approach
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       
@@ -595,13 +709,37 @@ class WebAppMCPClient {
       canvas.width = rect.width;
       canvas.height = rect.height;
 
-      // Draw a placeholder
-      ctx.fillStyle = '#e0e0e0';
+      // Get element styles
+      const styles = window.getComputedStyle(element);
+      const bgColor = styles.backgroundColor || '#ffffff';
+      
+      // Draw element representation
+      ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, rect.width, rect.height);
+      
+      // Draw border
+      ctx.strokeStyle = styles.borderColor || '#ddd';
+      ctx.lineWidth = parseInt(styles.borderWidth) || 1;
+      ctx.strokeRect(0, 0, rect.width, rect.height);
+      
+      // Add element info
       ctx.fillStyle = '#666';
-      ctx.font = '16px Arial';
+      ctx.font = '12px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`Element: ${selector}`, rect.width/2, rect.height/2);
+      
+      const lines = [
+        `Element: ${selector}`,
+        `Size: ${Math.round(rect.width)}x${Math.round(rect.height)}`,
+        `Tag: ${element.tagName.toLowerCase()}`,
+        element.className ? `Class: ${element.className}` : '',
+        'Add html2canvas for full rendering'
+      ].filter(Boolean);
+      
+      let y = Math.max(20, rect.height / 2 - (lines.length * 15) / 2);
+      lines.forEach(line => {
+        ctx.fillText(line, rect.width/2, y);
+        y += 15;
+      });
       
       const dataUrl = canvas.toDataURL(`image/${format}`);
       
@@ -611,7 +749,7 @@ class WebAppMCPClient {
         width: rect.width,
         height: rect.height,
         selector,
-        message: 'Element screenshot captured (placeholder - integrate html2canvas for full implementation)'
+        message: 'Element screenshot captured (basic mode - add html2canvas for full rendering)'
       };
     } catch (error) {
       throw new Error(`Failed to capture element screenshot: ${error}`);

@@ -1,6 +1,6 @@
 {
   "name": "@cgaspard/webappmcp-react",
-  "version": "0.1.0",
+  "version": "0.1.6",
   "description": "React plugin for WebApp MCP - adds React Router tools and React-specific functionality",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

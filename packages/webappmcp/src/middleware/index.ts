@@ -13,6 +13,7 @@ import * as os from 'os';
 export interface WebAppMCPConfig {
   wsPort?: number;
   wsHost?: string;  // WebSocket host (defaults to '0.0.0.0' to bind to all interfaces)
+  appPort?: number;  // Express app port (defaults to process.env.PORT || 3000)
   authentication?: {
     enabled: boolean;
     token?: string;
@@ -29,6 +30,7 @@ export interface WebAppMCPConfig {
   socketPath?: string;  // Unix socket path (only used when transport is 'socket')
   debug?: boolean;  // Enable debug logging (defaults to false)
   plugins?: WebAppMCPPlugin[];  // Custom application plugins
+  screenshotDir?: string;  // Directory to save screenshots (defaults to .webappmcp/screenshots)
 }
 
 export interface WebAppMCPPlugin {
@@ -90,6 +92,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
   const {
     wsPort = 4835,
     wsHost = '0.0.0.0',  // Bind to all interfaces by default
+    appPort = parseInt(process.env.PORT || '3000'),  // Express app port
     transport = 'sse',  // Default to sse transport
     socketPath = process.env.MCP_SOCKET_PATH || '/tmp/webapp-mcp.sock',
     authentication = { enabled: false },
@@ -106,6 +109,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
     mcpEndpointPath = '/mcp/sse',
     debug = false,  // Default to no debug logging
     plugins = [],  // Default to no plugins
+    screenshotDir = '.webappmcp/screenshots',  // Default screenshot directory
   } = config;
 
   // Logger helper that respects debug setting
@@ -260,6 +264,18 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           log(`✅ SSE endpoint registered at: ${mcpEndpointPath}`);
           log(`✅ MCPSSEServer instance created: ${mcpSSEServer ? 'Yes' : 'No'}`);
           log('✅ Ready to accept MCP connections');
+          
+          // Display the MCP URL with configured port
+          const displayHost = wsHost === '0.0.0.0' ? 'localhost' : wsHost;
+          console.log('\n' + '='.repeat(60));
+          console.log('🚀 MCP Server SSE Interface Ready!');
+          console.log('='.repeat(60));
+          console.log(`📡 Add this URL to your AI tool's MCP configuration:`);
+          console.log(`   http://${displayHost}:${appPort}${mcpEndpointPath}`);
+          console.log('');
+          console.log(`   Note: If your Express app runs on a different port,`);
+          console.log(`   update the URL or set appPort in the config.`);
+          console.log('='.repeat(60) + '\n');
         } catch (error) {
           logError('❌ Failed to initialize MCP SSE server:', error);
         }
@@ -346,22 +362,31 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
                         const format = matches[1];
                         const base64Data = matches[2];
                         
-                        // Create temp directory for screenshots
-                        const tempDir = path.join(os.tmpdir(), 'webappmcp-screenshots');
-                        await fs.mkdir(tempDir, { recursive: true });
+                        // Determine screenshot directory
+                        const screenshotsPath = path.isAbsolute(screenshotDir) 
+                          ? screenshotDir 
+                          : path.join(process.cwd(), screenshotDir);
                         
-                        // Generate filename with timestamp
+                        // Create screenshots directory
+                        await fs.mkdir(screenshotsPath, { recursive: true });
+                        
+                        // Generate filename with timestamp and random suffix
                         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                        const filename = `screenshot-${timestamp}.${format}`;
-                        const filepath = path.join(tempDir, filename);
+                        const randomSuffix = Math.random().toString(36).substring(2, 8);
+                        const filename = `screenshot-${timestamp}-${randomSuffix}.${format}`;
+                        const filepath = path.join(screenshotsPath, filename);
                         
                         // Write file
                         await fs.writeFile(filepath, Buffer.from(base64Data, 'base64'));
+                        
+                        log(`Screenshot saved to: ${filepath}`);
                         
                         // Return path instead of data URL
                         resolve({
                           ...result,
                           path: filepath,
+                          filename: filename,
+                          directory: screenshotsPath,
                           dataUrl: undefined // Remove dataUrl from response
                         });
                       } else {
@@ -417,19 +442,13 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
 
     // MCP SSE endpoint
     if (req.path === mcpEndpointPath) {
-      log(`[Middleware] ======= MCP SSE ENDPOINT HIT =======`);
       log(`[Middleware] Request to MCP SSE endpoint: ${req.method} ${req.path}`);
-      log(`[Middleware] Expected endpoint path: ${mcpEndpointPath}`);
-      log(`[Middleware] Transport mode: ${transport}`);
-      log(`[Middleware] SSE Server initialized: ${mcpSSEServer ? 'Yes' : 'No'}`);
-      log(`[Middleware] SSE Server type: ${typeof mcpSSEServer}`);
 
       if (!mcpSSEServer) {
         log(`[Middleware] ERROR: MCP SSE server not initialized`);
         return res.status(503).json({ error: 'MCP SSE server not initialized' });
       }
 
-      log(`[Middleware] Forwarding request to SSE server handleSSERequest method`);
       return mcpSSEServer.handleSSERequest(req, res);
     }
 

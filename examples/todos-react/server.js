@@ -19,16 +19,16 @@ if (args.includes('--stdio')) {
   transport = 'none';
 }
 
-// Add Express logging middleware
-app.use((req, res, next) => {
-  const timestamp = new Date().toISOString();
-  console.log(`[Express] ${timestamp} ${req.method} ${req.url}`);
-  console.log(`[Express] Headers:`, req.headers);
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log(`[Express] Body:`, req.body);
-  }
-  next();
-});
+// Add Express logging middleware (commented out to reduce noise)
+// app.use((req, res, next) => {
+//   const timestamp = new Date().toISOString();
+//   console.log(`[Express] ${timestamp} ${req.method} ${req.url}`);
+//   console.log(`[Express] Headers:`, req.headers);
+//   if (req.body && Object.keys(req.body).length > 0) {
+//     console.log(`[Express] Body:`, req.body);
+//   }
+//   next();
+// });
 
 // Configure WebApp MCP middleware
 app.use(webappMCP({

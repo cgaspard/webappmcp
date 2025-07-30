@@ -194,47 +194,15 @@ export class MCPSSEServer {
   }
 
   async handleSSERequest(req: Request, res: Response) {
-    const timestamp = new Date().toISOString();
-    this.log(`\n[${timestamp}] ====== INCOMING REQUEST ======`);
-    this.log(`[${timestamp}] ${req.method} ${req.url}`);
-    this.log(`[${timestamp}] Path: ${req.path}`);
-    this.log(`[${timestamp}] Query:`, req.query);
-    this.log(`[${timestamp}] Headers:`, JSON.stringify(req.headers, null, 2));
-    this.log(`[${timestamp}] User-Agent: ${req.headers['user-agent']}`);
-    this.log(`[${timestamp}] Content-Type: ${req.headers['content-type']}`);
-    this.log(`[${timestamp}] Accept: ${req.headers['accept']}`);
-    
-    // Log authorization header specifically
-    const authHeader = req.headers.authorization;
-    if (authHeader) {
-      this.log(`[${timestamp}] Authorization header present: ${authHeader}`);
-    } else {
-      this.log(`No authorization header found`);
-    }
+    this.log(`${req.method} ${req.path}`);
     
     try {
       if (req.method === 'GET') {
-        this.log(`Creating new server instance for GET request`);
-        
         // Create a new server instance for this connection
         const server = this.createServer();
         
         // Create SSE transport for this request
-        this.log(`Creating SSE transport for endpoint /mcp/sse`);
         const sseTransport = new SSEServerTransport('/mcp/sse', res);
-        
-        // Log what the SSE transport is sending
-        this.log(`SSE Transport created with sessionId: ${sseTransport.sessionId}`);
-        
-        // Override the send method to log messages
-        const originalSend = sseTransport.send.bind(sseTransport);
-        sseTransport.send = async (message: any) => {
-          this.log(`Sending SSE message:`, JSON.stringify(message));
-          return originalSend(message);
-        };
-        
-        // Connect the server to the SSE transport (this automatically calls start())
-        this.log(`Connecting server to SSE transport`);
         try {
           // Add timeout to prevent hanging
           const connectPromise = server.connect(sseTransport);
@@ -243,7 +211,7 @@ export class MCPSSEServer {
           });
           
           await Promise.race([connectPromise, timeoutPromise]);
-          this.log(`Successfully connected server to transport`);
+          this.log(`Client connected: ${sseTransport.sessionId}`);
         } catch (connectError) {
           this.logError(`ERROR connecting server to transport:`, connectError);
           throw connectError;
@@ -252,50 +220,23 @@ export class MCPSSEServer {
         // Store the transport with its session ID
         this.sseTransports.set(sseTransport.sessionId, sseTransport);
         
-        this.log(`Server connected to client: ${sseTransport.sessionId}`);
-        this.log(`Active SSE transports: ${this.sseTransports.size}`);
-        this.log(`SSE endpoint should be: /mcp/sse?sessionId=${sseTransport.sessionId}`);
-        
         // Handle connection close
         req.on('close', () => {
           this.sseTransports.delete(sseTransport.sessionId);
           this.log(`Client disconnected: ${sseTransport.sessionId}`);
-          this.log(`Active SSE transports: ${this.sseTransports.size}`);
         });
         
       } else if (req.method === 'POST') {
         // Extract session ID from URL params
         const sessionId = req.query.sessionId as string;
-        this.log(`POST request for session: ${sessionId}`);
-        
         if (!sessionId) {
-          this.log(`No session ID provided in POST request`);
           return res.status(400).json({ error: 'Session ID required for POST requests' });
         }
         
         const sseTransport = this.sseTransports.get(sessionId);
         if (!sseTransport) {
-          this.log(`Session not found: ${sessionId}`);
-          this.log(`Available sessions: ${Array.from(this.sseTransports.keys()).join(', ')}`);
           return res.status(404).json({ error: 'SSE session not found' });
         }
-        
-        this.log(`Handling POST message for session: ${sessionId}`);
-        
-        // Add logging to see what's being posted
-        const originalWrite = res.write;
-        const originalEnd = res.end;
-        const self = this;
-        
-        res.write = function(...args: any[]) {
-          self.log(`Response write:`, args[0]);
-          return originalWrite.apply(res, args as any);
-        };
-        
-        res.end = function(...args: any[]) {
-          self.log(`Response end:`, args[0]);
-          return originalEnd.apply(res, args as any);
-        };
         
         // Handle incoming POST messages (don't consume the body here - let SSE transport handle it)
         await sseTransport.handlePostMessage(req, res);

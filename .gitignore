@@ -42,3 +42,6 @@ coverage/
 *.tmp
 *.temp
 .cache/
+
+# WebApp MCP
+.webappmcp/

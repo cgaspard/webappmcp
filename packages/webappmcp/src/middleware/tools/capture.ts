@@ -3,13 +3,13 @@ import { ToolDefinition } from '../types.js';
 export const captureTools: ToolDefinition[] = [
   {
     name: 'capture_screenshot',
-    description: 'Take a screenshot of the currently displayed page in the live web application',
+    description: 'Take a screenshot of the connected web app. Can capture either the visible viewport or the entire page including content below the fold.',
     inputSchema: {
       type: 'object',
       properties: {
         fullPage: {
           type: 'boolean',
-          description: 'Capture the full page height',
+          description: 'true = capture entire page height (including scrolled content), false = capture only visible viewport',
           default: true,
         },
         format: {

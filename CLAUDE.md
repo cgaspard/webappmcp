@@ -196,4 +196,42 @@ mcpClient.connect();
 6. Good performance with minimal overhead
 7. Clear documentation and examples
 
+## Terminology and Usage Guidelines
+
+### How to Refer to the Connected Application
+
+When using WebApp MCP with an AI assistant, use these terms to clearly refer to the application being controlled:
+
+#### Recommended Terms:
+1. **"the connected web app"** - Most clear and descriptive, preferred for general use
+2. **"the browser client"** - When specifically referring to the frontend/browser instance
+3. **"the target application"** - More formal, good for documentation and technical discussions
+4. **"the MCP client"** - Technical term, best when discussing the MCP connection specifically
+
+#### Example Usage:
+
+**Good examples:**
+- "Click the submit button in the connected web app"
+- "Take a screenshot of the browser client" 
+- "Get the current route from the target application"
+- "Check if the MCP client has any console errors"
+
+**Avoid ambiguous references:**
+- ❌ "Click the button on the page" (which page?)
+- ❌ "Check the DOM" (whose DOM?)
+- ❌ "Get the state" (what state from where?)
+
+#### Why This Matters:
+- **Clarity**: Distinguishes between the MCP server, Express backend, and the actual web page
+- **Precision**: Helps AI assistants understand exactly which system to interact with
+- **Consistency**: Reduces confusion in multi-system environments
+
+### Architecture Clarity
+
+When discussing the system, be specific about which component you mean:
+- **MCP Server**: The server exposing tools to AI assistants
+- **Express App/Backend**: The Node.js server running your application
+- **Connected Web App/Browser Client**: The actual web page open in a browser
+- **WebSocket Connection**: The real-time connection between browser and backend
+
 This document serves as the source of truth for the WebApp MCP Server project. All implementation decisions should align with the architecture and goals outlined here.

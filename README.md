@@ -31,6 +31,7 @@ const app = express();
 app.use(webappMCP({
   transport: 'sse',
   wsPort: 4835,
+  appPort: 3000,  // Tell middleware what port Express will use
   cors: {
     origin: true,
     credentials: true
@@ -38,7 +39,7 @@ app.use(webappMCP({
 }));
 
 app.listen(3000);
-console.log('MCP SSE endpoint: http://localhost:3000/mcp/sse');
+// The middleware will display the correct MCP URL when initialized
 ```
 
 ### 2. Add client to your frontend
@@ -186,15 +187,42 @@ Add to your Zed assistant panel settings:
 - `javascript_inject` - Execute JavaScript code in the browser
 - `execute_javascript` - Execute JavaScript with async support
 
+## Terminology Guide
+
+When working with AI assistants using WebApp MCP, use these terms for clarity:
+
+### Recommended Terms
+- **"the connected web app"** - The web page being controlled (preferred)
+- **"the browser client"** - The frontend/browser instance
+- **"the target application"** - Formal term for the controlled app
+- **"the MCP client"** - When discussing the MCP connection
+
+### Example Usage
+✅ **Good:**
+- "Click the submit button in the connected web app"
+- "Take a screenshot of the browser client"
+- "Get the current route from the target application"
+
+❌ **Avoid:**
+- "Click the button" (ambiguous)
+- "Check the page" (which page?)
+- "Get the state" (from where?)
+
 ## Configuration Options
 
 ```javascript
 webappMCP({
-  // MCP server port
-  mcpPort: 3100,
+  // Transport type: 'sse' (default), 'stdio', 'socket', or 'none'
+  transport: 'sse',
+  
+  // Express app port (defaults to process.env.PORT || 3000)
+  appPort: 3000,
   
   // WebSocket port for client connections
   wsPort: 4835,
+  
+  // MCP SSE endpoint path
+  mcpEndpointPath: '/mcp/sse',
   
   // Authentication settings
   authentication: {
@@ -214,7 +242,13 @@ webappMCP({
   cors: {
     origin: '*',
     credentials: true
-  }
+  },
+  
+  // Screenshot storage directory (relative to project root)
+  screenshotDir: '.webappmcp/screenshots',
+  
+  // Debug logging
+  debug: false
 });
 ```
 

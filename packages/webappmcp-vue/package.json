@@ -1,6 +1,6 @@
 {
   "name": "@cgaspard/webappmcp-vue",
-  "version": "0.1.0",
+  "version": "0.1.6",
   "description": "Vue.js plugin for WebApp MCP - adds Vue Router tools and Vue-specific functionality",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

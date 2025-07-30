@@ -6,16 +6,16 @@ const { webappMCP } = require('@cgaspard/webappmcp');
 const app = express();
 const port = process.env.PORT || 4834;
 
-// Request logging middleware
-app.use((req, res, next) => {
-  const timestamp = new Date().toISOString();
-  console.log(`[Express] ${timestamp} ${req.method} ${req.url}`);
-  console.log(`[Express] Headers:`, req.headers);
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log(`[Express] Body:`, req.body);
-  }
-  next();
-});
+// Request logging middleware (commented out to reduce noise)
+// app.use((req, res, next) => {
+//   const timestamp = new Date().toISOString();
+//   console.log(`[Express] ${timestamp} ${req.method} ${req.url}`);
+//   console.log(`[Express] Headers:`, req.headers);
+//   if (req.body && Object.keys(req.body).length > 0) {
+//     console.log(`[Express] Body:`, req.body);
+//   }
+//   next();
+// });
 
 // Parse command line arguments
 const args = process.argv.slice(2);
