@@ -13,6 +13,7 @@ export interface MCPSSEConfig {
   executeTool?: (toolName: string, args: any) => Promise<any>;
   debug?: boolean;
   plugins?: WebAppMCPPlugin[];
+  getServerLogs?: (level?: string, limit?: number) => any[];
 }
 
 export class MCPSSEServer {
@@ -21,12 +22,14 @@ export class MCPSSEServer {
   private executeTool?: (toolName: string, args: any) => Promise<any>;
   private debug: boolean;
   private plugins: WebAppMCPPlugin[];
+  private getServerLogs?: (level?: string, limit?: number) => any[];
 
   constructor(config: MCPSSEConfig) {
     this.getClients = config.getClients;
     this.executeTool = config.executeTool;
     this.debug = config.debug ?? false;
     this.plugins = config.plugins ?? [];
+    this.getServerLogs = config.getServerLogs;
   }
 
   private log(...args: any[]): void {
@@ -101,6 +104,32 @@ export class MCPSSEServer {
         };
         this.log(`webapp_list_clients result:`, JSON.stringify(result, null, 2));
         return result;
+      }
+      
+      // Handle server-side tools
+      if (name === 'console_get_server_logs') {
+        if (!this.getServerLogs) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: 'Server log capture not enabled. Set captureServerLogs: true in middleware config.',
+              },
+            ],
+          };
+        }
+        
+        const { level = 'all', limit = 100 } = args || {};
+        const logs = this.getServerLogs(level as string, limit as number);
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ logs }, null, 2),
+            },
+          ],
+        };
       }
       
       // Check if this is a plugin tool

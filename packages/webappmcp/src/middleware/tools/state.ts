@@ -66,4 +66,72 @@ export const stateTools: ToolDefinition[] = [
       properties: {},
     },
   },
+  {
+    name: 'console_get_server_logs',
+    description: 'Retrieve console logs from the Node.js Express server',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        level: {
+          type: 'string',
+          enum: ['all', 'log', 'info', 'warn', 'error'],
+          description: 'Log level to filter by',
+          default: 'all',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of logs to return',
+          default: 100,
+        },
+      },
+    },
+  },
+  {
+    name: 'server_execute_js',
+    description: 'Execute JavaScript code on the Node.js server (disabled in production)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: {
+          type: 'string',
+          description: 'JavaScript code to execute',
+        },
+        timeout: {
+          type: 'number',
+          description: 'Execution timeout in milliseconds',
+          default: 5000,
+        },
+      },
+      required: ['code'],
+    },
+  },
+  {
+    name: 'server_get_system_info',
+    description: 'Get server process and system information',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'server_get_env',
+    description: 'Get filtered environment variables (sensitive values masked)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filter: {
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+          description: 'List of environment variable names to retrieve',
+        },
+        showAll: {
+          type: 'boolean',
+          description: 'Show all non-sensitive environment variables',
+          default: false,
+        },
+      },
+    },
+  },
 ];

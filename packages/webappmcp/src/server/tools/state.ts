@@ -58,4 +58,24 @@ export const stateTools: ToolDefinition[] = [
       },
     },
   },
+  {
+    name: 'console_get_server_logs',
+    description: 'Retrieve console logs from the Node.js Express server',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        level: {
+          type: 'string',
+          enum: ['all', 'log', 'info', 'warn', 'error'],
+          description: 'Log level to filter by',
+          default: 'all',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of logs to return',
+          default: 100,
+        },
+      },
+    },
+  },
 ];

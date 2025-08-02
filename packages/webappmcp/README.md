@@ -1,6 +1,6 @@
 # @cgaspard/webappmcp
 
-WebApp MCP (Model Context Protocol) - A comprehensive toolkit for enabling AI assistants to interact with web applications through DOM inspection, user interaction simulation, and state management.
+WebApp MCP (Model Context Protocol) - A comprehensive toolkit for enabling AI assistants to interact with web applications through DOM inspection, user interaction simulation, state management, and server-side debugging.
 
 ## Installation
 
@@ -26,12 +26,16 @@ const app = express();
 // Add WebApp MCP middleware
 app.use(webappMCP({
   transport: 'sse',
-  mcpPort: 3100,
-  wsPort: 3101,
-  cors: {
-    origin: true,
-    credentials: true
-  }
+  wsPort: 4835,
+  authentication: {
+    enabled: true,
+    token: process.env.MCP_AUTH_TOKEN
+  },
+  permissions: {
+    serverExec: false  // Server-side JS execution (auto-disabled in production)
+  },
+  captureServerLogs: true,  // Enable server console log capture
+  serverTools: false        // Server-side tools (auto-disabled in production)
 }));
 
 app.listen(3000, () => {
@@ -119,7 +123,13 @@ See the [Plugin Architecture documentation](../../docs/plugin-architecture.md) f
 - **State Management**
   - `state_get_variable` - Access JavaScript variables
   - `state_local_storage` - Read/write localStorage
-  - `console_get_logs` - Retrieve console logs
+  - `console_get_logs` - Retrieve browser console logs
+
+- **Server-Side Tools** (NEW)
+  - `console_get_server_logs` - Retrieve Node.js server console logs with filtering
+  - `server_execute_js` - Execute JavaScript code on the server (sandboxed)
+  - `server_get_system_info` - Get process, memory, CPU, and OS information
+  - `server_get_env` - Inspect environment variables (with sensitive data masking)
 
 - **Visual Capture**
   - `capture_screenshot` - Take full page screenshots
