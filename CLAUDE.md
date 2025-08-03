@@ -67,20 +67,27 @@ webappmcp/
 └── docs/               # Documentation
 ```
 
-### MCP Tools to Implement
+### Available MCP Tools
 
-1. **dom.query** - Find elements using CSS selectors
-2. **dom.getProperties** - Get element properties and attributes
-3. **dom.getText** - Extract text content
-4. **dom.getHTML** - Get HTML structure
-5. **interaction.click** - Click on elements
-6. **interaction.type** - Type text into inputs
-7. **interaction.scroll** - Scroll page or elements
-8. **capture.screenshot** - Take screenshots
-9. **capture.elementScreenshot** - Capture specific elements
-10. **state.getVariable** - Access JavaScript variables
-11. **state.localStorage** - Read/write local storage
-12. **console.getLogs** - Retrieve console logs
+#### Browser-Side Tools
+1. **dom_query** - Find elements using CSS selectors
+2. **dom_get_properties** - Get element properties and attributes
+3. **dom_get_text** - Extract text content
+4. **dom_get_html** - Get HTML structure
+5. **interaction_click** - Click on elements
+6. **interaction_type** - Type text into inputs
+7. **interaction_scroll** - Scroll page or elements
+8. **capture_screenshot** - Take full page screenshots
+9. **capture_element_screenshot** - Capture specific elements
+10. **state_get_variable** - Access JavaScript variables
+11. **state_local_storage** - Read/write local storage
+12. **console_get_logs** - Retrieve browser console logs
+
+#### Server-Side Tools (NEW)
+13. **console_get_server_logs** - Retrieve Node.js server console logs with filtering
+14. **server_execute_js** - Execute JavaScript code on the server (sandboxed)
+15. **server_get_system_info** - Get process, memory, CPU, and OS information
+16. **server_get_env** - Inspect environment variables (with sensitive data masking)
 
 ### Security Considerations
 
@@ -91,6 +98,13 @@ webappmcp/
 - Implement CORS properly for WebSocket connections
 - Provide option to run in read-only mode
 
+#### Server-Side Security Features
+- **Production Safety**: Server tools automatically disabled when `NODE_ENV=production`
+- **Sandboxed Execution**: JavaScript execution uses VM isolation with limited module access
+- **Sensitive Data Masking**: Automatic masking of tokens, keys, passwords in environment variables
+- **Timeout Protection**: Execution timeouts prevent infinite loops and runaway code
+- **Permission Controls**: Granular enable/disable options for server features
+
 ### Configuration
 
 Users will configure the middleware with:
@@ -98,11 +112,8 @@ Users will configure the middleware with:
 import { webappMCP } from '@cgaspard/webappmcp';
 
 app.use(webappMCP({
-  // MCP server configuration
-  mcpPort: 3100,
-  
   // WebSocket configuration
-  wsPort: 3101,
+  wsPort: 4835,
   
   // Security settings
   authentication: {
@@ -110,12 +121,21 @@ app.use(webappMCP({
     token: process.env.MCP_AUTH_TOKEN
   },
   
+  // Transport mode
+  transport: 'sse', // 'sse', 'stdio', 'socket', or 'none'
+  
   // Allowed operations
   permissions: {
     read: true,
     write: true,
-    screenshot: true
-  }
+    screenshot: true,
+    serverExec: false  // Allow server-side JS execution (disabled in production)
+  },
+  
+  // Server-side features
+  captureServerLogs: true,  // Enable server console log capture
+  serverLogLimit: 1000,     // Max server logs to store
+  serverTools: false        // Enable server-side tools (disabled in production)
 }));
 ```
 

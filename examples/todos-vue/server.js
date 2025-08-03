@@ -40,8 +40,48 @@ app.use(webappMCP({
   },
   transport: transport,
   mcpEndpointPath: '/mcp/sse',
-  debug: false
+  debug: false,
+  captureServerLogs: true,  // Enable server log capture
+  serverLogLimit: 500  // Store up to 500 log entries
 }));
+
+// Add API endpoints with logging
+app.get('/api/test-logs', (req, res) => {
+  console.log('[API] Test logs endpoint hit');
+  console.info('[API] Processing test log request...');
+  console.warn('[API] This is a warning - just for testing!');
+  
+  // Log an object
+  console.log('[API] Request details:', {
+    timestamp: new Date().toISOString(),
+    ip: req.ip,
+    userAgent: req.get('user-agent')
+  });
+  
+  // Simulate different scenarios
+  const randomNum = Math.random();
+  if (randomNum < 0.3) {
+    console.error('[API] Simulated error condition occurred!', { randomNum });
+  }
+  
+  res.json({ 
+    message: 'Logs generated successfully!',
+    randomNum,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Add a periodic log generator
+setInterval(() => {
+  const messages = [
+    'Server health check',
+    'Memory usage check',
+    'Active connections check',
+    'Cache cleanup'
+  ];
+  const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+  console.info(`[CRON] ${randomMessage} - ${new Date().toISOString()}`);
+}, 30000); // Every 30 seconds
 
 // Serve static files from the build directory
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -61,4 +101,19 @@ app.listen(PORT, () => {
   console.log(`WebApp MCP WebSocket server at ws://localhost:4835`);
   console.log(`MCP transport: ${transport}`);
   console.log(`Auth token: ${process.env.MCP_AUTH_TOKEN || 'demo-token'}`);
+  
+  // Test different log levels on startup
+  console.log('[STARTUP] Server initialized successfully');
+  console.info('[STARTUP] All systems operational');
+  console.warn('[STARTUP] Running in development mode');
+  
+  // Log server configuration
+  console.log('[CONFIG] Server configuration:', {
+    port: PORT,
+    wsPort: 4835,
+    transport,
+    nodeVersion: process.version,
+    platform: process.platform,
+    uptime: process.uptime()
+  });
 });
