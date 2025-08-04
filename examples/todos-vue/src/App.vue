@@ -96,16 +96,58 @@ const filter = ref('all');
 
 // Load todos from localStorage on mount
 onMounted(() => {
+  console.log('[Vue Todos] App mounted - initializing...');
+  console.info('[Vue Todos] Loading todos from localStorage');
+  
   const savedTodos = localStorage.getItem('todos');
   if (savedTodos) {
     todos.value = JSON.parse(savedTodos);
+    console.log(`[Vue Todos] Loaded ${todos.value.length} todos from storage`);
+  } else {
+    console.warn('[Vue Todos] No saved todos found in localStorage');
+  }
+  
+  // Test different console methods
+  console.log('[Vue Todos] Testing console methods:');
+  console.debug('[Vue Todos] Debug message - may not appear in production');
+  console.info('[Vue Todos] Info message - application ready');
+  console.warn('[Vue Todos] Warning message - this is just a test');
+  
+  // Log an object
+  console.log('[Vue Todos] App state:', {
+    todosCount: todos.value.length,
+    currentFilter: filter.value,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Add a periodic heartbeat log
+  setInterval(() => {
+    console.info(`[Vue Todos] Heartbeat - ${todos.value.length} todos, filter: ${filter.value}`);
+  }, 30000); // Every 30 seconds
+  
+  // Simulate an error condition (caught)
+  try {
+    // This won't actually throw, just for demonstration
+    if (Math.random() < 0.1) {
+      throw new Error('[Vue Todos] Simulated error for testing');
+    }
+  } catch (error) {
+    console.error('[Vue Todos] Caught error:', error.message);
   }
 });
 
 // Save todos to localStorage whenever they change
 watch(todos, (newTodos) => {
   localStorage.setItem('todos', JSON.stringify(newTodos));
+  console.info(`[Vue Todos] Saved ${newTodos.length} todos to localStorage`);
 }, { deep: true });
+
+// Watch filter changes
+watch(filter, (newFilter) => {
+  console.log(`[Vue Todos] Filter changed to: ${newFilter}`);
+  const visibleCount = filteredTodos.value.length;
+  console.info(`[Vue Todos] Showing ${visibleCount} todos with filter: ${newFilter}`);
+});
 
 // Methods
 const addTodo = () => {
@@ -116,8 +158,12 @@ const addTodo = () => {
       completed: false
     };
     todos.value.push(todo);
+    console.log('[Vue Todos] Added new todo:', todo.text);
+    console.info('[Vue Todos] Todo details:', todo);
+    console.log(`[Vue Todos] Total todos: ${todos.value.length}`);
     newTodo.value = '';
-    console.log('Added todo:', todo.text);
+  } else {
+    console.warn('[Vue Todos] Cannot add empty todo');
   }
 };
 
@@ -139,8 +185,15 @@ const deleteTodo = (id) => {
 };
 
 const clearCompleted = () => {
+  const beforeCount = todos.value.length;
+  const completedCount = todos.value.filter(t => t.completed).length;
   todos.value = todos.value.filter(todo => !todo.completed);
-  console.log('Cleared completed todos');
+  console.log(`[Vue Todos] Cleared ${completedCount} completed todos`);
+  console.info(`[Vue Todos] Todos before: ${beforeCount}, after: ${todos.value.length}`);
+  
+  if (completedCount === 0) {
+    console.warn('[Vue Todos] No completed todos to clear');
+  }
 };
 
 // Computed properties
