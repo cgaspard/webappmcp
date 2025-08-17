@@ -316,11 +316,27 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           },
           executeTool: executeToolFunction || undefined,
           plugins: plugins,
-          getServerLogs: captureServerLogs ? (level?: string, limit?: number) => {
+          getServerLogs: captureServerLogs ? (level?: string, limit?: number, regex?: string) => {
             let logs = serverLogs;
             if (level && level !== 'all') {
               logs = logs.filter((log) => log.level === level);
             }
+            
+            // Apply regex filtering if provided
+            if (regex) {
+              try {
+                const pattern = new RegExp(regex);
+                logs = logs.filter((log) => {
+                  // Concatenate all log arguments into a single string for matching
+                  const logMessage = log.args.join(' ');
+                  return pattern.test(logMessage);
+                });
+              } catch (e) {
+                // Return empty array on invalid regex
+                return [];
+              }
+            }
+            
             return logs.slice(-(limit || 100));
           } : undefined,
         });
@@ -397,11 +413,26 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           if (toolName === 'console_get_server_logs') {
             clearTimeout(timeout);
             
-            const { level = 'all', limit = 100 } = args;
+            const { level = 'all', limit = 100, regex } = args;
             let logs = serverLogs;
             
             if (level !== 'all') {
               logs = logs.filter((log) => log.level === level);
+            }
+            
+            // Apply regex filtering if provided
+            if (regex) {
+              try {
+                const pattern = new RegExp(regex);
+                logs = logs.filter((log) => {
+                  // Concatenate all log arguments into a single string for matching
+                  const logMessage = log.args.join(' ');
+                  return pattern.test(logMessage);
+                });
+              } catch (e) {
+                reject(new Error(`Invalid regex pattern: ${regex}`));
+                return;
+              }
             }
             
             resolve({ logs: logs.slice(-limit) });
@@ -647,6 +678,63 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
                   }
                 };
                 saveScreenshot();
+              } else if (toolName === 'console_save_to_file') {
+                // Handle console log save to file
+                const saveConsoleLogs = async () => {
+                  try {
+                    const result = message.result;
+                    if (result && result.logs) {
+                      // Determine logs directory
+                      const logsPath = path.isAbsolute('.webappmcp/logs') 
+                        ? '.webappmcp/logs' 
+                        : path.join(process.cwd(), '.webappmcp/logs');
+                      
+                      // Create logs directory
+                      await fs.mkdir(logsPath, { recursive: true });
+                      
+                      // Generate filename with timestamp and random suffix
+                      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                      const randomSuffix = Math.random().toString(36).substring(2, 8);
+                      const format = result.format || 'json';
+                      const extension = format === 'json' ? 'json' : 'txt';
+                      const filename = `console-logs-${timestamp}-${randomSuffix}.${extension}`;
+                      const filepath = path.join(logsPath, filename);
+                      
+                      // Format and write file
+                      let fileContent: string;
+                      if (format === 'json') {
+                        fileContent = JSON.stringify(result.logs, null, 2);
+                      } else {
+                        // Text format
+                        fileContent = result.logs.map((log: any) => {
+                          const timestamp = log.timestamp || new Date().toISOString();
+                          const level = (log.level || 'log').toUpperCase();
+                          const message = log.args ? log.args.join(' ') : '';
+                          return `[${timestamp}] [${level}] ${message}`;
+                        }).join('\n');
+                      }
+                      
+                      await fs.writeFile(filepath, fileContent, 'utf8');
+                      
+                      log(`Console logs saved to: ${filepath}`);
+                      
+                      // Return path and metadata
+                      resolve({
+                        path: filepath,
+                        filename: filename,
+                        directory: logsPath,
+                        logCount: result.logs.length,
+                        format: format
+                      });
+                    } else {
+                      resolve(result);
+                    }
+                  } catch (error) {
+                    log('Error saving console logs:', error);
+                    resolve(message.result); // Fall back to original result
+                  }
+                };
+                saveConsoleLogs();
               } else {
                 resolve(message.result);
               }

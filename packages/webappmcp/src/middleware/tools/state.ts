@@ -55,6 +55,35 @@ export const stateTools: ToolDefinition[] = [
           description: 'Maximum number of logs to return',
           default: 100,
         },
+        regex: {
+          type: 'string',
+          description: 'Regular expression pattern to filter log messages (matches against full log message)',
+        },
+      },
+    },
+  },
+  {
+    name: 'console_save_to_file',
+    description: 'Save browser console logs to a file in the .webappmcp directory for large log analysis',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        level: {
+          type: 'string',
+          enum: ['all', 'log', 'info', 'warn', 'error'],
+          description: 'Log level to filter by',
+          default: 'all',
+        },
+        format: {
+          type: 'string',
+          enum: ['json', 'text'],
+          description: 'Output format for the log file',
+          default: 'json',
+        },
+        clientId: {
+          type: 'string',
+          description: 'Client ID to capture logs from (optional, uses first available browser if not specified)',
+        },
       },
     },
   },
@@ -82,6 +111,10 @@ export const stateTools: ToolDefinition[] = [
           type: 'number',
           description: 'Maximum number of logs to return',
           default: 100,
+        },
+        regex: {
+          type: 'string',
+          description: 'Regular expression pattern to filter log messages (matches against full log message)',
         },
       },
     },

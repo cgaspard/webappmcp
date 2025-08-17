@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.2] - 2025-08-17
+
+### Added
+- Regex filtering support for `console_get_logs` tool to filter browser console logs by pattern
+- Regex filtering support for `console_get_server_logs` tool to filter server console logs by pattern
+- Improved log analysis capabilities by allowing pattern-based filtering to reduce log downloads
+
+### Changed
+- Updated tool definitions to include optional `regex` parameter for console log tools
+- Enhanced error handling for invalid regex patterns in log filtering
+
 ## [0.1.5] - 2025-07-16
 
 ### Fixed

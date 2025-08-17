@@ -123,10 +123,10 @@ See the [Plugin Architecture documentation](../../docs/plugin-architecture.md) f
 - **State Management**
   - `state_get_variable` - Access JavaScript variables
   - `state_local_storage` - Read/write localStorage
-  - `console_get_logs` - Retrieve browser console logs
+  - `console_get_logs` - Retrieve browser console logs with regex filtering
 
 - **Server-Side Tools** (NEW)
-  - `console_get_server_logs` - Retrieve Node.js server console logs with filtering
+  - `console_get_server_logs` - Retrieve Node.js server console logs with regex filtering
   - `server_execute_js` - Execute JavaScript code on the server (sandboxed)
   - `server_get_system_info` - Get process, memory, CPU, and OS information
   - `server_get_env` - Inspect environment variables (with sensitive data masking)

@@ -286,6 +286,9 @@ class WebAppMCPClient {
         case 'console_get_logs':
           result = await this.consoleGetLogs(args);
           break;
+        case 'console_save_to_file':
+          result = await this.consoleSaveToFile(args);
+          break;
         case 'dom_manipulate':
           result = await this.domManipulate(args);
           break;
@@ -800,14 +803,49 @@ class WebAppMCPClient {
   }
 
   private async consoleGetLogs(args: any): Promise<any> {
-    const { level = 'all', limit = 100 } = args;
+    const { level = 'all', limit = 100, regex } = args;
     
     let logs = this.consoleLogs;
     if (level !== 'all') {
       logs = logs.filter((log) => log.level === level);
     }
 
+    // Apply regex filtering if provided
+    if (regex) {
+      try {
+        const pattern = new RegExp(regex);
+        logs = logs.filter((log) => {
+          // Concatenate all log arguments into a single string for matching
+          const logMessage = log.args.map((arg: any) => {
+            try {
+              return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+            } catch {
+              return String(arg);
+            }
+          }).join(' ');
+          return pattern.test(logMessage);
+        });
+      } catch (e) {
+        throw new Error(`Invalid regex pattern: ${regex}`);
+      }
+    }
+
     return { logs: logs.slice(-limit) };
+  }
+
+  private async consoleSaveToFile(args: any): Promise<any> {
+    const { level = 'all', format = 'json' } = args;
+    
+    let logs = this.consoleLogs;
+    if (level !== 'all') {
+      logs = logs.filter((log) => log.level === level);
+    }
+
+    // Return logs with format for server-side processing
+    return { 
+      logs: logs,
+      format: format
+    };
   }
 
   private async domManipulate(args: any): Promise<any> {

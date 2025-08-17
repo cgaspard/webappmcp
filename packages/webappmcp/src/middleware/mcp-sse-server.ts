@@ -13,7 +13,7 @@ export interface MCPSSEConfig {
   executeTool?: (toolName: string, args: any) => Promise<any>;
   debug?: boolean;
   plugins?: WebAppMCPPlugin[];
-  getServerLogs?: (level?: string, limit?: number) => any[];
+  getServerLogs?: (level?: string, limit?: number, regex?: string) => any[];
 }
 
 export class MCPSSEServer {
@@ -22,7 +22,7 @@ export class MCPSSEServer {
   private executeTool?: (toolName: string, args: any) => Promise<any>;
   private debug: boolean;
   private plugins: WebAppMCPPlugin[];
-  private getServerLogs?: (level?: string, limit?: number) => any[];
+  private getServerLogs?: (level?: string, limit?: number, regex?: string) => any[];
 
   constructor(config: MCPSSEConfig) {
     this.getClients = config.getClients;
@@ -119,8 +119,8 @@ export class MCPSSEServer {
           };
         }
         
-        const { level = 'all', limit = 100 } = args || {};
-        const logs = this.getServerLogs(level as string, limit as number);
+        const { level = 'all', limit = 100, regex } = args || {};
+        const logs = this.getServerLogs(level as string, limit as number, regex as string | undefined);
         
         return {
           content: [

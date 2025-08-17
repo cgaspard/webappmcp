@@ -55,6 +55,10 @@ export const stateTools: ToolDefinition[] = [
           description: 'Maximum number of logs to return',
           default: 100,
         },
+        regex: {
+          type: 'string',
+          description: 'Regular expression pattern to filter log messages (matches against full log message)',
+        },
       },
     },
   },
@@ -74,6 +78,10 @@ export const stateTools: ToolDefinition[] = [
           type: 'number',
           description: 'Maximum number of logs to return',
           default: 100,
+        },
+        regex: {
+          type: 'string',
+          description: 'Regular expression pattern to filter log messages (matches against full log message)',
         },
       },
     },
