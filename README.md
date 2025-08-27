@@ -248,8 +248,74 @@ webappMCP({
   screenshotDir: '.webappmcp/screenshots',
   
   // Debug logging
-  debug: false
+  debug: false,
+  
+  // Server-side console log capture
+  captureServerLogs: true,     // Enable/disable all server log capture (default: true)
+  serverLogLimit: 1000,         // Maximum logs to keep in memory (default: 1000)
+  
+  // Granular log capture configuration
+  logCapture: {
+    console: true,    // Capture console.log/warn/error/info (default: true)
+    streams: true,    // Capture stdout/stderr streams (default: true)
+    winston: true,    // Capture Winston logs via transport (default: true)
+    bunyan: true,     // Capture Bunyan logs (default: true)
+    pino: true,       // Capture Pino logs (default: true)
+    debug: true,      // Capture debug library logs (default: true)
+    log4js: true      // Capture log4js logs (default: true)
+  }
 });
+```
+
+### Server Log Capture
+
+WebApp MCP can capture server-side console logs and logging library output, making them accessible through the MCP tools. This is especially useful for debugging and monitoring.
+
+#### Features
+
+- **Multi-layer capture**: Intercepts logs at library, console, and stream levels
+- **Winston support**: Automatically adds transport to Winston loggers
+- **Circular buffer**: Keeps only the most recent logs (configurable limit)
+- **Selective capture**: Choose which log sources to capture
+- **Performance-friendly**: Disable specific interceptors for better performance
+
+#### Configuration Examples
+
+```javascript
+// Capture everything (default)
+app.use(webappMCP({
+  captureServerLogs: true
+}));
+
+// Console only (lightweight)
+app.use(webappMCP({
+  logCapture: {
+    console: true,
+    streams: false,
+    winston: false,
+    bunyan: false,
+    pino: false,
+    debug: false,
+    log4js: false
+  }
+}));
+
+// Winston-specific capture
+app.use(webappMCP({
+  logCapture: {
+    console: false,
+    winston: true
+  }
+}));
+
+// Disable Winston if it conflicts
+app.use(webappMCP({
+  logCapture: {
+    console: true,
+    streams: true,
+    winston: false  // Disable Winston interception
+  }
+}));
 ```
 
 ## Examples

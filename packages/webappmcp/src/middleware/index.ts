@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { IntegratedMCPServer } from './mcp-server.js';
 import { MCPSSEServer } from './mcp-sse-server.js';
 import { MCPSocketServer } from './mcp-socket-server.js';
+import { interceptAllLoggers, interceptProcessStreams } from './logger-interceptors.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -35,6 +36,15 @@ export interface WebAppMCPConfig {
   captureServerLogs?: boolean;  // Enable server console log capture (defaults to true)
   serverLogLimit?: number;  // Maximum number of server logs to keep (defaults to 1000)
   serverTools?: boolean;  // Enable server-side tools (defaults to false in production)
+  logCapture?: {  // Granular log capture configuration
+    console?: boolean;  // Capture console.log/warn/error/info (defaults to true)
+    streams?: boolean;  // Capture stdout/stderr streams (defaults to true)
+    winston?: boolean;  // Capture Winston logs via transport (defaults to true)
+    bunyan?: boolean;  // Capture Bunyan logs (defaults to true)
+    pino?: boolean;  // Capture Pino logs (defaults to true)
+    debug?: boolean;  // Capture debug library logs (defaults to true)
+    log4js?: boolean;  // Capture log4js logs (defaults to true)
+  };
 }
 
 export interface WebAppMCPPlugin {
@@ -124,6 +134,15 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
     captureServerLogs = true,  // Default to capturing server logs
     serverLogLimit = 1000,  // Default limit for server logs
     serverTools = process.env.NODE_ENV !== 'production',  // Disabled in production by default
+    logCapture = {
+      console: true,  // Default to capturing console logs
+      streams: true,  // Default to capturing streams
+      winston: true,  // Default to capturing Winston
+      bunyan: true,  // Default to capturing Bunyan
+      pino: true,  // Default to capturing Pino
+      debug: true,  // Default to capturing debug
+      log4js: true,  // Default to capturing log4js
+    },
   } = config;
 
   // Logger helper that respects debug setting
@@ -147,46 +166,68 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
   
   // Setup server console interception if enabled
   if (captureServerLogs) {
-    const originalConsole = {
-      log: console.log,
-      info: console.info,
-      warn: console.warn,
-      error: console.error,
-    };
+    // First, try to intercept known logging libraries based on config
+    const interceptedLoggers = interceptAllLoggers(serverLogs, serverLogLimit, logCapture);
+    if (interceptedLoggers.length > 0) {
+      log(`Intercepted logging libraries: ${interceptedLoggers.join(', ')}`);
+    }
     
-    const interceptor = (level: string, originalMethod: Function) => {
-      return (...args: any[]) => {
-        // Don't capture our own webappmcp logs to avoid infinite loops
-        const isOwnLog = args.length > 0 && args[0] === '[webappmcp]';
-        
-        if (!isOwnLog) {
-          serverLogs.push({
-            level,
-            timestamp: new Date().toISOString(),
-            args: args.map((arg) => {
-              try {
-                return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
-              } catch {
-                return String(arg);
-              }
-            }),
-          });
-          
-          // Maintain circular buffer
-          if (serverLogs.length > serverLogLimit) {
-            serverLogs.shift();
-          }
-        }
-        
-        // Call original method
-        originalMethod.apply(console, args);
+    // Conditionally intercept console methods
+    if (logCapture.console) {
+      const originalConsole = {
+        log: console.log,
+        info: console.info,
+        warn: console.warn,
+        error: console.error,
       };
-    };
+      
+      const interceptor = (level: string, originalMethod: Function) => {
+        return (...args: any[]) => {
+          // Don't capture our own webappmcp logs to avoid infinite loops
+          const isOwnLog = args.length > 0 && args[0] === '[webappmcp]';
+          
+          if (!isOwnLog) {
+            serverLogs.push({
+              level,
+              timestamp: new Date().toISOString(),
+              args: args.map((arg) => {
+                try {
+                  return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+                } catch {
+                  return String(arg);
+                }
+              }),
+            });
+            
+            // Maintain circular buffer
+            if (serverLogs.length > serverLogLimit) {
+              serverLogs.shift();
+            }
+          }
+          
+          // Call original method
+          originalMethod.apply(console, args);
+        };
+      };
+      
+      console.log = interceptor('log', originalConsole.log);
+      console.info = interceptor('info', originalConsole.info);
+      console.warn = interceptor('warn', originalConsole.warn);
+      console.error = interceptor('error', originalConsole.error);
+    }
     
-    console.log = interceptor('log', originalConsole.log);
-    console.info = interceptor('info', originalConsole.info);
-    console.warn = interceptor('warn', originalConsole.warn);
-    console.error = interceptor('error', originalConsole.error);
+    // Conditionally intercept process.stdout/stderr
+    if (logCapture.streams) {
+      interceptProcessStreams(serverLogs, serverLogLimit);
+    }
+    
+    // Build status message
+    const captureTypes = [];
+    if (interceptedLoggers.length > 0) captureTypes.push(`libraries (${interceptedLoggers.join(', ')})`);
+    if (logCapture.console) captureTypes.push('console');
+    if (logCapture.streams) captureTypes.push('streams');
+    
+    log(`Server log capture enabled with: ${captureTypes.join(', ')}`);
   }
 
   // Store reference to execute tools

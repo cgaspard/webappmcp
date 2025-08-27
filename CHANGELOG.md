@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.2.3] - 2025-08-27
+
+### Added
+- Granular log capture configuration with `logCapture` option
+- Selective interception of logging libraries (Winston, Bunyan, Pino, log4js, debug)
+- Ability to disable specific log capture methods for performance or compatibility
+- Custom Winston transport for comprehensive log capture
+- Multi-layer log interception system (library, console, stream levels)
+- Support for capturing Winston logs even when using file transports
+
+### Changed
+- Improved logger detection and attachment mechanism
+- Enhanced circular buffer management for log storage
+- Better separation of concerns between different log capture methods
+
+### Fixed
+- Winston logs now properly captured regardless of transport configuration
+- Resolved duplicate log entries from multiple interception layers
+- Fixed compatibility issues with various Winston configurations
+
 ## [0.2.2] - 2025-08-17
 
 ### Added

@@ -105,6 +105,46 @@ webappmcp/
 - **Timeout Protection**: Execution timeouts prevent infinite loops and runaway code
 - **Permission Controls**: Granular enable/disable options for server features
 
+### Server Log Capture System
+
+#### Overview
+The middleware includes a sophisticated multi-layer log capture system that intercepts server-side logs from various sources, making them accessible through MCP tools.
+
+#### Architecture
+1. **Library-specific interceptors**: Direct integration with Winston, Bunyan, Pino, log4js, and debug
+2. **Console method interception**: Captures console.log/warn/error/info as fallback
+3. **Stream interception**: Ultimate fallback capturing stdout/stderr writes
+4. **Circular buffer storage**: Memory-efficient storage with configurable limits
+
+#### Log Capture Configuration
+```javascript
+{
+  captureServerLogs: true,     // Master switch for all log capture
+  serverLogLimit: 1000,        // Max logs in circular buffer
+  logCapture: {
+    console: true,    // Intercept console methods
+    streams: true,    // Intercept stdout/stderr
+    winston: true,    // Add transport to Winston loggers
+    bunyan: true,     // Hook Bunyan emit
+    pino: true,       // Add Pino transport
+    debug: true,      // Intercept debug library
+    log4js: true      // Add log4js appender
+  }
+}
+```
+
+#### Winston Integration Details
+- **Automatic Transport Addition**: Detects Winston and adds WebAppMCPTransport
+- **Logger Creation Interception**: Hooks winston.createLogger to add transport to new loggers
+- **File Transport Support**: Captures logs even when Winston writes to files
+- **Metadata Preservation**: Maintains Winston's log metadata and context
+
+#### Performance Considerations
+- **Selective Interception**: Can disable specific interceptors to reduce overhead
+- **Circular Buffer**: Prevents unbounded memory growth
+- **Lazy Loading**: Interceptors only activate when libraries are detected
+- **Production Mode**: Can use minimal capture (console only) for better performance
+
 ### Configuration
 
 Users will configure the middleware with:
@@ -135,7 +175,18 @@ app.use(webappMCP({
   // Server-side features
   captureServerLogs: true,  // Enable server console log capture
   serverLogLimit: 1000,     // Max server logs to store
-  serverTools: false        // Enable server-side tools (disabled in production)
+  serverTools: false,       // Enable server-side tools (disabled in production)
+  
+  // Granular log capture control (all default to true)
+  logCapture: {
+    console: true,    // Console methods
+    streams: true,    // stdout/stderr
+    winston: true,    // Winston transport
+    bunyan: true,     // Bunyan hooks
+    pino: true,       // Pino transport
+    debug: true,      // Debug library
+    log4js: true      // log4js appender
+  }
 }));
 ```
 
