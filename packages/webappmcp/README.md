@@ -1,6 +1,15 @@
-# @cgaspard/webappmcp
+# WebApp MCP Server
 
-WebApp MCP (Model Context Protocol) - A comprehensive toolkit for enabling AI assistants to interact with web applications through DOM inspection, user interaction simulation, state management, and server-side debugging.
+A Model Context Protocol (MCP) server that enables AI assistants to interact with web applications through DOM inspection, user interaction simulation, and application state management.
+
+## Features
+
+- 🔍 **DOM Inspection** - Query and inspect DOM elements using CSS selectors
+- 🖱️ **User Interaction** - Simulate clicks, typing, scrolling, and other user actions
+- 📸 **Visual Capture** - Take screenshots of pages or specific elements
+- 🔧 **State Access** - Read application state, local storage, and console logs
+- 🚀 **Framework Support** - Works with React, Vue, Angular, and vanilla JavaScript
+- 🔒 **Secure** - Built-in authentication and permission controls
 
 ## Installation
 
@@ -8,14 +17,9 @@ WebApp MCP (Model Context Protocol) - A comprehensive toolkit for enabling AI as
 npm install @cgaspard/webappmcp
 ```
 
-For global CLI usage:
-```bash
-npm install -g @cgaspard/webappmcp
-```
-
 ## Quick Start
 
-### Express Middleware
+### 1. Add to your Express application
 
 ```javascript
 import express from 'express';
@@ -23,134 +27,376 @@ import { webappMCP } from '@cgaspard/webappmcp';
 
 const app = express();
 
-// Add WebApp MCP middleware
+// Configure the MCP middleware
 app.use(webappMCP({
   transport: 'sse',
   wsPort: 4835,
-  authentication: {
-    enabled: true,
-    token: process.env.MCP_AUTH_TOKEN
-  },
-  permissions: {
-    serverExec: false  // Server-side JS execution (auto-disabled in production)
-  },
-  captureServerLogs: true,  // Enable server console log capture
-  serverTools: false        // Server-side tools (auto-disabled in production)
+  appPort: 3000,  // Tell middleware what port Express will use
+  cors: {
+    origin: true,
+    credentials: true
+  }
 }));
 
-app.listen(3000, () => {
-  console.log('Server running on port 3000');
-  console.log('MCP SSE endpoint: http://localhost:3000/mcp/sse');
-  console.log('WebSocket server: ws://localhost:3101');
-});
+app.listen(3000);
+// The middleware will display the correct MCP URL when initialized
 ```
 
-### Browser Client
+### 2. Add client to your frontend
 
-#### ES Modules
-```javascript
-import { WebAppMCPClient } from '@cgaspard/webappmcp';
-
-const client = new WebAppMCPClient({
-  serverUrl: 'ws://localhost:3101',
-  autoConnect: true
-});
-
-client.connect();
-```
-
-#### Script Tag
 ```html
 <script src="https://unpkg.com/@cgaspard/webappmcp/dist/browser.min.js"></script>
 <script>
-  const client = new WebAppMCP.WebAppMCPClient({
-    serverUrl: 'ws://localhost:3101',
+  const mcpClient = new WebAppMCP.WebAppMCPClient({
+    serverUrl: 'ws://localhost:4835',
     autoConnect: true
   });
   
-  client.connect();
+  mcpClient.connect();
 </script>
 ```
 
-### Standalone Server
-
-```bash
-# Run the standalone MCP server
-webappmcp-server --port 3100 --ws-port 3101
-```
-
-## Plugins
-
-WebApp MCP uses a modular plugin architecture. Framework-specific functionality is available through separate npm packages:
-
-### Available Plugins
-
-- **[@cgaspard/webappmcp-vue](https://www.npmjs.com/package/@cgaspard/webappmcp-vue)** - Vue.js and Vue Router integration
-- **[@cgaspard/webappmcp-react](https://www.npmjs.com/package/@cgaspard/webappmcp-react)** - React, React Router, and Next.js integration
-
-### Using Plugins
+Or with npm:
 
 ```javascript
-const { webappMCP } = require('@cgaspard/webappmcp');
-const vuePlugin = require('@cgaspard/webappmcp-vue').default;
+import { WebAppMCPClient } from '@cgaspard/webappmcp';
 
-app.use(webappMCP({
-  wsPort: 4835,
-  transport: 'sse',
-  plugins: [vuePlugin]
-}));
+const mcpClient = new WebAppMCPClient({
+  serverUrl: 'ws://localhost:4835',
+  autoConnect: true
+});
+
+mcpClient.connect();
 ```
 
-See the [Plugin Architecture documentation](../../docs/plugin-architecture.md) for details on creating custom plugins.
+### 3. Configure your AI assistant
 
-## Features
+#### Claude Desktop App
 
-### Core MCP Tools
+Add using the command line (example for basic todos app):
+```bash
+claude mcp add webapp-sse sse:http://localhost:4834/mcp/sse
+```
 
-- **DOM Operations**
-  - `dom_query` - Find elements using CSS selectors
-  - `dom_get_properties` - Get element properties and attributes
-  - `dom_get_text` - Extract text content
-  - `dom_get_html` - Get HTML structure
-  - `dom_manipulate` - Modify DOM elements
+For any of the example apps, use the same standardized port:
+- **All Examples**: `http://localhost:4834/mcp/sse`
 
-- **User Interactions**
-  - `interaction_click` - Click on elements
-  - `interaction_type` - Type text into inputs
-  - `interaction_scroll` - Scroll page or elements
-  - `interaction_hover` - Hover over elements
+Or manually edit your configuration (example for basic todos app):
+```json
+{
+  "mcpServers": {
+    "webapp-sse": {
+      "transport": {
+        "type": "sse",
+        "url": "http://localhost:4834/mcp/sse"
+      }
+    }
+  }
+}
+```
 
-- **State Management**
-  - `state_get_variable` - Access JavaScript variables
-  - `state_local_storage` - Read/write localStorage
-  - `console_get_logs` - Retrieve browser console logs with regex filtering
+#### Claude Code CLI
 
-- **Server-Side Tools** (NEW)
-  - `console_get_server_logs` - Retrieve Node.js server console logs with regex filtering
-  - `server_execute_js` - Execute JavaScript code on the server (sandboxed)
-  - `server_get_system_info` - Get process, memory, CPU, and OS information
-  - `server_get_env` - Inspect environment variables (with sensitive data masking)
+Add to your Claude Code configuration (`~/.config/claude-code/settings.json`):
+```json
+{
+  "mcpServers": {
+    "webapp": {
+      "transport": {
+        "type": "sse", 
+        "url": "http://localhost:4834/mcp/sse"
+      }
+    }
+  }
+}
+```
 
-- **Visual Capture**
-  - `capture_screenshot` - Take full page screenshots
-  - `capture_element_screenshot` - Capture specific elements
+#### Cline (VS Code Extension)
 
-- **Diagnostic Tools**
-  - `webapp_list_clients` - List connected browser clients
-  - `javascript_inject` - Execute JavaScript code
-  - `execute_javascript` - Execute JavaScript with async support
+Add to your Cline MCP settings in VS Code:
+```json
+{
+  "webapp": {
+    "transport": {
+      "type": "sse",
+      "url": "http://localhost:4834/mcp/sse"
+    }
+  }
+}
+```
+
+#### Continue.dev
+
+Add to your Continue configuration (`~/.continue/config.json`):
+```json
+{
+  "models": [...],
+  "mcpServers": {
+    "webapp": {
+      "transport": {
+        "type": "sse",
+        "url": "http://localhost:4834/mcp/sse"
+      }
+    }
+  }
+}
+```
+
+#### Zed Editor
+
+Add to your Zed assistant panel settings:
+```json
+{
+  "mcpServers": {
+    "webapp": {
+      "transport": {
+        "type": "sse",
+        "url": "http://localhost:4834/mcp/sse"
+      }
+    }
+  }
+}
+```
+
+## Available Tools
+
+All tools are prefixed with `webapp_` to prevent naming conflicts with other MCP servers.
+
+### DOM Inspection
+- `webapp_dom_query` - Find elements using CSS selectors
+- `webapp_dom_get_properties` - Get element properties and attributes
+- `webapp_dom_get_text` - Extract text content
+- `webapp_dom_get_html` - Get HTML structure
+- `webapp_dom_manipulate` - Modify DOM elements (setAttribute, addClass, etc.)
+
+### User Interactions
+- `webapp_interaction_click` - Click on elements
+- `webapp_interaction_type` - Type text into inputs
+- `webapp_interaction_scroll` - Scroll page or elements
+- `webapp_interaction_hover` - Hover over elements
+
+### Visual Capture
+- `webapp_capture_screenshot` - Take full page screenshots
+- `webapp_capture_element_screenshot` - Capture specific elements
+
+### State Management
+- `webapp_state_get_variable` - Access JavaScript variables
+- `webapp_state_local_storage` - Read/write local storage
+- `webapp_console_get_logs` - Retrieve browser console logs
+- `webapp_console_save_to_file` - Save browser logs to file
+
+### Server-Side Tools
+- `webapp_console_get_server_logs` - Retrieve Node.js server logs
+- `webapp_server_execute_js` - Execute JavaScript on the server (sandboxed)
+- `webapp_server_get_system_info` - Get process and system information
+- `webapp_server_get_env` - Inspect environment variables (masked)
+
+### Diagnostic Tools
+- `webapp_list_clients` - List connected browser clients
+- `webapp_javascript_inject` - Execute JavaScript code in the browser
+- `webapp_execute_javascript` - Execute JavaScript with async support
+
+## Terminology Guide
+
+When working with AI assistants using WebApp MCP, use these terms for clarity:
+
+### Recommended Terms
+- **"the connected web app"** - The web page being controlled (preferred)
+- **"the browser client"** - The frontend/browser instance
+- **"the target application"** - Formal term for the controlled app
+- **"the MCP client"** - When discussing the MCP connection
+
+### Example Usage
+✅ **Good:**
+- "Click the submit button in the connected web app"
+- "Take a screenshot of the browser client"
+- "Get the current route from the target application"
+
+❌ **Avoid:**
+- "Click the button" (ambiguous)
+- "Check the page" (which page?)
+- "Get the state" (from where?)
+
+## Configuration Options
+
+```javascript
+webappMCP({
+  // Transport type: 'sse' (default), 'stdio', 'socket', or 'none'
+  transport: 'sse',
+  
+  // Express app port (defaults to process.env.PORT || 3000)
+  appPort: 3000,
+  
+  // WebSocket port for client connections
+  wsPort: 4835,
+  
+  // MCP SSE endpoint path
+  mcpEndpointPath: '/mcp/sse',
+  
+  // Authentication settings
+  authentication: {
+    enabled: true,
+    token: 'your-secure-token'
+  },
+  
+  // Permission controls
+  permissions: {
+    read: true,        // Allow DOM reading
+    write: true,       // Allow DOM modifications
+    screenshot: true,  // Allow screenshots
+    state: true        // Allow state access
+  },
+  
+  // CORS settings
+  cors: {
+    origin: '*',
+    credentials: true
+  },
+  
+  // Screenshot storage directory (relative to project root)
+  screenshotDir: '.webappmcp/screenshots',
+  
+  // Debug logging
+  debug: false,
+  
+  // Server-side console log capture
+  captureServerLogs: true,     // Enable/disable all server log capture (default: true)
+  serverLogLimit: 1000,         // Maximum logs to keep in memory (default: 1000)
+
+  // Winston logger (RECOMMENDED: pass your logger directly)
+  winstonLogger: logger,       // Optional Winston logger instance for direct integration
+
+  // Granular log capture configuration
+  logCapture: {
+    console: false,   // Capture console.log/warn/error/info (disable if using Winston)
+    streams: false,   // Capture stdout/stderr streams (disable if using Winston)
+    winston: true,    // Capture Winston logs via transport (default: true)
+    bunyan: false,    // Capture Bunyan logs (default: true)
+    pino: false,      // Capture Pino logs (default: true)
+    debug: false,     // Capture debug library logs (default: true)
+    log4js: false     // Capture log4js logs (default: true)
+  }
+});
+```
+
+### Server Log Capture
+
+WebApp MCP can capture server-side console logs and logging library output, making them accessible through the MCP tools. This is especially useful for debugging and monitoring.
+
+#### Features
+
+- **Multi-layer capture**: Intercepts logs at library, console, and stream levels
+- **Winston support**: Direct integration via manual configuration (recommended)
+- **Circular buffer**: Keeps only the most recent logs (configurable limit)
+- **Selective capture**: Choose which log sources to capture
+- **Performance-friendly**: Disable specific interceptors for better performance
+
+#### Winston Integration (Recommended)
+
+The best way to capture Winston logs is to pass your logger directly:
+
+```javascript
+const winston = require('winston');
+
+// Create Winston logger
+const logger = winston.createLogger({
+  level: 'info',
+  transports: [new winston.transports.Console()]
+});
+
+// Pass it to the middleware
+const mcpMiddleware = app.use(webappMCP({
+  winstonLogger: logger,  // Direct integration (recommended!)
+  captureServerLogs: true,
+  logCapture: {
+    console: false,  // Disable console capture
+    winston: true    // Winston capture via winstonLogger param
+  }
+}));
+
+// Alternative: Attach logger after setup (if created elsewhere)
+// mcpMiddleware.attachWinston(logger);
+```
+
+#### Configuration Examples
+
+```javascript
+// Winston-only capture (recommended for production)
+const logger = winston.createLogger({ /* ... */ });
+
+app.use(webappMCP({
+  winstonLogger: logger,
+  captureServerLogs: true,
+  logCapture: {
+    console: false,
+    streams: false,
+    winston: true
+  }
+}));
+
+// Console only (lightweight, development)
+app.use(webappMCP({
+  captureServerLogs: true,
+  logCapture: {
+    console: true,
+    streams: false,
+    winston: false
+  }
+}));
+
+// Attach Winston from separate module
+const mcpMiddleware = app.use(webappMCP({ captureServerLogs: true }));
+const logger = require('./config/logger');
+mcpMiddleware.attachWinston(logger);  // Attach after the fact
+```
+
+## Examples
+
+Check out the [Todos App Example](examples/todos) - a fully functional todo application that demonstrates all WebApp MCP features.
+
+### Common Use Cases
+
+```javascript
+// Add a new todo
+await webapp.interaction.type({ 
+  selector: '#new-todo',
+  text: 'Buy groceries'
+});
+await webapp.interaction.click({ selector: '#add-todo' });
+
+// Toggle todo completion
+await webapp.interaction.click({ selector: '.todo-checkbox' });
+
+// Filter todos
+await webapp.interaction.click({ selector: '[data-filter="active"]' });
+
+// Access application state
+const todos = await webapp.state.getVariable({ 
+  path: 'window.todosApp.todos' 
+});
+```
+
+## Security
+
+WebApp MCP Server includes several security features:
+
+- **Authentication** - Token-based authentication for MCP connections
+- **Rate Limiting** - Prevent abuse with configurable rate limits
+- **Input Sanitization** - All DOM queries are sanitized to prevent XSS
+- **Permission Control** - Fine-grained control over allowed operations
+- **HTTPS Support** - Secure WebSocket connections
 
 ## Framework Integration
 
 ### React
-```jsx
+```javascript
 import { useEffect } from 'react';
 import { WebAppMCPClient } from '@cgaspard/webappmcp';
 
 function App() {
   useEffect(() => {
     const client = new WebAppMCPClient({
-      serverUrl: 'ws://localhost:3101',
+      serverUrl: 'ws://localhost:4835',
       autoConnect: true
     });
     
@@ -159,7 +405,7 @@ function App() {
     return () => client.disconnect();
   }, []);
   
-  return <div>Your React App</div>;
+  return <div>Your app content</div>;
 }
 ```
 
@@ -170,7 +416,7 @@ import { WebAppMCPClient } from '@cgaspard/webappmcp';
 export default {
   mounted() {
     this.mcpClient = new WebAppMCPClient({
-      serverUrl: 'ws://localhost:3101',
+      serverUrl: 'ws://localhost:4835',
       autoConnect: true
     });
     
@@ -185,133 +431,78 @@ export default {
 }
 ```
 
-## Configuration
+### Angular
+```typescript
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { WebAppMCPClient } from '@cgaspard/webappmcp';
 
-### Middleware Options
-```javascript
-{
-  transport: 'sse',          // 'sse', 'stdio', 'socket', 'none'
-  mcpPort: 3100,            // MCP server port
-  wsPort: 3101,             // WebSocket server port
-  cors: {                   // CORS configuration
-    origin: true,
-    credentials: true
-  },
-  authentication: {         // Optional auth
-    enabled: false,
-    token: 'your-token'
-  },
-  debug: false              // Enable debug logging (default: false)
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html'
+})
+export class AppComponent implements OnInit, OnDestroy {
+  private mcpClient: WebAppMCPClient;
+  
+  ngOnInit() {
+    this.mcpClient = new WebAppMCPClient({
+      serverUrl: 'ws://localhost:4835',
+      autoConnect: true
+    });
+    
+    this.mcpClient.connect();
+  }
+  
+  ngOnDestroy() {
+    if (this.mcpClient) {
+      this.mcpClient.disconnect();
+    }
+  }
 }
 ```
 
-### Client Options
-```javascript
-{
-  serverUrl: 'ws://localhost:3101',    // WebSocket URL
-  autoConnect: true,                   // Auto-connect on init
-  reconnect: true,                     // Auto-reconnect
-  reconnectInterval: 5000,             // Reconnect interval (ms)
-  maxReconnectAttempts: 10,           // Max reconnect attempts
-  enableDevTools: false,               // Show DevTools overlay
-  debug: false                         // Enable debug logging (default: false)
-}
-```
+## Development
 
-## MCP Client Configuration
-
-### Claude Desktop App
-
-Add using the command line:
 ```bash
-claude mcp add webapp-sse sse:http://localhost:3000/mcp/sse
+# Clone the repository
+git clone https://github.com/cgaspard/webappmcp.git
+cd webappmcp
+
+# Install dependencies
+npm install
+
+# Build all packages
+npm run build
+
+# Run tests
+npm test
+
+# Start development server
+npm run dev
 ```
 
-Or manually edit your configuration:
-```json
-{
-  "mcpServers": {
-    "webapp-sse": {
-      "transport": {
-        "type": "sse",
-        "url": "http://localhost:3000/mcp/sse"
-      }
-    }
-  }
-}
-```
+## VS Code Integration
 
-### Claude Code CLI
+This project includes full VS Code support for easy development and debugging. See [VS_CODE_SETUP.md](VS_CODE_SETUP.md) for details.
 
-Add to your Claude Code configuration (`~/.config/claude-code/settings.json`):
-```json
-{
-  "mcpServers": {
-    "webapp": {
-      "transport": {
-        "type": "sse", 
-        "url": "http://localhost:3000/mcp/sse"
-      }
-    }
-  }
-}
-```
+Quick start with VS Code:
+1. Open the project in VS Code
+2. Press `F5` to launch both the demo app and MCP server
+3. Visit http://localhost:3456 to see the demo
 
-### Cline (VS Code Extension)
+## Contributing
 
-Add to your Cline MCP settings in VS Code:
-```json
-{
-  "webapp": {
-    "transport": {
-      "type": "sse",
-      "url": "http://localhost:3000/mcp/sse"
-    }
-  }
-}
-```
-
-### Continue.dev
-
-Add to your Continue configuration (`~/.continue/config.json`):
-```json
-{
-  "models": [...],
-  "mcpServers": {
-    "webapp": {
-      "transport": {
-        "type": "sse",
-        "url": "http://localhost:3000/mcp/sse"
-      }
-    }
-  }
-}
-```
-
-### Zed Editor
-
-Add to your Zed assistant panel settings:
-```json
-{
-  "mcpServers": {
-    "webapp": {
-      "transport": {
-        "type": "sse",
-        "url": "http://localhost:3000/mcp/sse"
-      }
-    }
-  }
-}
-```
-
-## Examples
-
-See the `examples` directory for complete working examples with:
-- Basic Express integration
-- Todo app with vanilla JavaScript
-- React Todo app
-- Vue.js Todo app
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## License
 
-MIT
+MIT © [cgaspard](https://github.com/cgaspard)
+
+## Support
+
+- 📚 [Documentation](https://github.com/cgaspard/webappmcp/wiki)
+- 🐛 [Issue Tracker](https://github.com/cgaspard/webappmcp/issues)
+- 💬 [Discussions](https://github.com/cgaspard/webappmcp/discussions)
+
+---
+
+Built with ❤️ to make AI-powered web automation accessible to everyone.
