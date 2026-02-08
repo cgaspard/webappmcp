@@ -2,7 +2,7 @@ import { ToolDefinition } from '../types.js';
 
 export const executeTools: ToolDefinition[] = [
   {
-    name: 'execute_javascript',
+    name: 'webapp_execute_javascript',
     description: 'Execute JavaScript code in the context of the currently connected web application',
     inputSchema: {
       type: 'object',

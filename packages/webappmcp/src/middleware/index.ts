@@ -36,6 +36,7 @@ export interface WebAppMCPConfig {
   captureServerLogs?: boolean;  // Enable server console log capture (defaults to true)
   serverLogLimit?: number;  // Maximum number of server logs to keep (defaults to 1000)
   serverTools?: boolean;  // Enable server-side tools (defaults to false in production)
+  winstonLogger?: any;  // Optional Winston logger instance to capture logs from (recommended approach)
   logCapture?: {  // Granular log capture configuration
     console?: boolean;  // Capture console.log/warn/error/info (defaults to true)
     streams?: boolean;  // Capture stdout/stderr streams (defaults to true)
@@ -134,6 +135,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
     captureServerLogs = true,  // Default to capturing server logs
     serverLogLimit = 1000,  // Default limit for server logs
     serverTools = process.env.NODE_ENV !== 'production',  // Disabled in production by default
+    winstonLogger = null,  // Optional Winston logger instance
     logCapture = {
       console: true,  // Default to capturing console logs
       streams: true,  // Default to capturing streams
@@ -160,12 +162,29 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
   const clients = new Map<string, ClientInfo>();
   let wss: WebSocketServer | null = null;
   let mcpSSEServer: MCPSSEServer | null = null;
-  
+
   // Server console log storage
   const serverLogs: ServerLogEntry[] = [];
+
+  // Store reference for late Winston attachment
+  let winstonAttached = false;
   
   // Setup server console interception if enabled
   if (captureServerLogs) {
+    // If Winston logger is provided directly, attach to it (recommended approach)
+    if (winstonLogger && logCapture.winston) {
+      try {
+        const { createWinstonTransport } = require('./winston-transport.js');
+        const transport = createWinstonTransport(serverLogs, serverLogLimit);
+        if (transport) {
+          winstonLogger.add(transport);
+          log('Attached Winston transport to provided logger');
+        }
+      } catch (error) {
+        logError('Failed to attach Winston transport:', error);
+      }
+    }
+
     // First, try to intercept known logging libraries based on config
     const interceptedLoggers = interceptAllLoggers(serverLogs, serverLogLimit, logCapture);
     if (interceptedLoggers.length > 0) {
@@ -794,7 +813,38 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
       });
     };
 
-  return (req: Request, res: Response, next: NextFunction) => {
+  // Function to attach Winston logger after initialization
+  const attachWinston = (logger: any) => {
+    if (!logger) {
+      logError('attachWinston: No logger provided');
+      return false;
+    }
+
+    if (winstonAttached) {
+      log('Winston logger already attached, skipping');
+      return false;
+    }
+
+    try {
+      const { createWinstonTransport } = require('./winston-transport.js');
+      const transport = createWinstonTransport(serverLogs, serverLogLimit);
+      if (transport) {
+        logger.add(transport);
+        winstonAttached = true;
+        log('Winston logger attached successfully');
+        return true;
+      } else {
+        logError('Failed to create Winston transport');
+        return false;
+      }
+    } catch (error) {
+      logError('Error attaching Winston logger:', error);
+      return false;
+    }
+  };
+
+  // Create middleware function
+  const middleware = (req: Request, res: Response, next: NextFunction) => {
 
     if (req.path === '/__webappmcp/status') {
       return res.json({
@@ -890,6 +940,11 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
 
     next();
   };
+
+  // Attach the Winston attachment function to the middleware
+  (middleware as any).attachWinston = attachWinston;
+
+  return middleware;
 }
 
 async function handleClientMessage(
@@ -942,3 +997,9 @@ async function handleClientMessage(
 
 export default webappMCP;
 export { IntegratedMCPServer } from './mcp-server.js';
+
+// Type definition for the middleware with attachWinston method
+export interface WebAppMCPMiddleware {
+  (req: Request, res: Response, next: NextFunction): void;
+  attachWinston: (logger: any) => boolean;
+}

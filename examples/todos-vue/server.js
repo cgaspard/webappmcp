@@ -1,9 +1,23 @@
 const express = require('express');
 const path = require('path');
+const winston = require('winston');
 const { webappMCP } = require('@cgaspard/webappmcp');
 
 const app = express();
 const PORT = process.env.PORT || 4834;
+
+// Create Winston logger BEFORE middleware setup
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.simple()
+  ),
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: 'app.log' })
+  ]
+});
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -30,29 +44,51 @@ if (args.includes('--stdio')) {
 //   next();
 // });
 
-// Configure WebApp MCP middleware
+// Configure WebApp MCP middleware with manual Winston configuration (recommended)
 app.use(webappMCP({
   wsPort: 4835,
-  appPort: PORT,  // Tell the middleware what port we're using
+  appPort: PORT,
   authentication: {
     enabled: true,
     token: process.env.MCP_AUTH_TOKEN || 'demo-token'
   },
   transport: transport,
   mcpEndpointPath: '/mcp/sse',
-  debug: false,
-  captureServerLogs: true,  // Enable server log capture
-  serverLogLimit: 500  // Store up to 500 log entries
+  debug: true,
+  captureServerLogs: true,
+  serverLogLimit: 500,
+  winstonLogger: logger,  // Pass Winston logger directly (recommended!)
+  // Winston-only capture - disable other interceptors
+  logCapture: {
+    console: false,  // DISABLE console capture
+    streams: false,  // DISABLE stream capture
+    winston: true,   // ENABLE Winston capture (but handled via winstonLogger param)
+    bunyan: false,
+    pino: false,
+    debug: false,
+    log4js: false
+  }
 }));
 
-// Add API endpoints with logging
+// Add API endpoints with mixed logging
 app.get('/api/test-logs', (req, res) => {
-  console.log('[API] Test logs endpoint hit');
-  console.info('[API] Processing test log request...');
-  console.warn('[API] This is a warning - just for testing!');
+  // Console logs - should NOT be captured
+  console.log('[CONSOLE-API] Test logs endpoint hit');
+  console.info('[CONSOLE-API] Processing test log request...');
+  console.warn('[CONSOLE-API] This is a warning - just for testing!');
   
-  // Log an object
-  console.log('[API] Request details:', {
+  // Winston logs - SHOULD be captured
+  logger.info('[WINSTON-API] Test logs endpoint hit');
+  logger.info('[WINSTON-API] Processing test log request...');
+  logger.warn('[WINSTON-API] This is a warning - just for testing!');
+  
+  // Log objects
+  console.log('[CONSOLE-API] Request details (console):', {
+    timestamp: new Date().toISOString(),
+    ip: req.ip
+  });
+  
+  logger.info('[WINSTON-API] Request details (winston):', {
     timestamp: new Date().toISOString(),
     ip: req.ip,
     userAgent: req.get('user-agent')
@@ -61,17 +97,18 @@ app.get('/api/test-logs', (req, res) => {
   // Simulate different scenarios
   const randomNum = Math.random();
   if (randomNum < 0.3) {
-    console.error('[API] Simulated error condition occurred!', { randomNum });
+    console.error('[CONSOLE-API] Simulated error (console)!', { randomNum });
+    logger.error('[WINSTON-API] Simulated error (winston)!', { randomNum });
   }
   
   res.json({ 
-    message: 'Logs generated successfully!',
+    message: 'Mixed logs generated! Check MCP to see only Winston logs.',
     randomNum,
     timestamp: new Date().toISOString()
   });
 });
 
-// Add a periodic log generator
+// Add a periodic log generator with BOTH loggers
 setInterval(() => {
   const messages = [
     'Server health check',
@@ -80,7 +117,12 @@ setInterval(() => {
     'Cache cleanup'
   ];
   const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-  console.info(`[CRON] ${randomMessage} - ${new Date().toISOString()}`);
+  
+  // Console log - should NOT be captured
+  console.info(`[CONSOLE-CRON] ${randomMessage} - ${new Date().toISOString()}`);
+  
+  // Winston log - SHOULD be captured
+  logger.info(`[WINSTON-CRON] ${randomMessage} - ${new Date().toISOString()}`);
 }, 30000); // Every 30 seconds
 
 // Serve static files from the build directory
@@ -102,13 +144,22 @@ app.listen(PORT, () => {
   console.log(`MCP transport: ${transport}`);
   console.log(`Auth token: ${process.env.MCP_AUTH_TOKEN || 'demo-token'}`);
   
-  // Test different log levels on startup
-  console.log('[STARTUP] Server initialized successfully');
-  console.info('[STARTUP] All systems operational');
-  console.warn('[STARTUP] Running in development mode');
+  // Test BOTH Winston and console logs
+  console.log('[CONSOLE] This is a regular console.log - should NOT be captured');
+  console.error('[CONSOLE] This is console.error - should NOT be captured');
   
-  // Log server configuration
-  console.log('[CONFIG] Server configuration:', {
+  logger.info('[WINSTON] Server initialized successfully - should BE captured');
+  logger.warn('[WINSTON] Running in development mode - should BE captured');
+  logger.error('[WINSTON] Test error message - should BE captured');
+  
+  // Mixed logging
+  console.log('[CONSOLE] Server configuration (console):', {
+    port: PORT,
+    wsPort: 4835,
+    transport
+  });
+  
+  logger.info('[WINSTON] Server configuration (winston):', {
     port: PORT,
     wsPort: 4835,
     transport,
@@ -116,4 +167,9 @@ app.listen(PORT, () => {
     platform: process.platform,
     uptime: process.uptime()
   });
+  
+  console.log('\n=== LOG CAPTURE TEST ===');
+  console.log('Console logs: DISABLED (should not appear in MCP)');
+  console.log('Winston logs: ENABLED (should appear in MCP)');
+  console.log('========================\n');
 });

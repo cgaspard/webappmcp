@@ -2,7 +2,7 @@ import { ToolDefinition } from '../types.js';
 
 export const interactionTools: ToolDefinition[] = [
   {
-    name: 'interaction_click',
+    name: 'webapp_interaction_click',
     description: 'Click on a DOM element in the live web application',
     inputSchema: {
       type: 'object',
@@ -22,7 +22,7 @@ export const interactionTools: ToolDefinition[] = [
     },
   },
   {
-    name: 'interaction_type',
+    name: 'webapp_interaction_type',
     description: 'Type text into an input field in the running web application',
     inputSchema: {
       type: 'object',
@@ -45,7 +45,7 @@ export const interactionTools: ToolDefinition[] = [
     },
   },
   {
-    name: 'interaction_scroll',
+    name: 'webapp_interaction_scroll',
     description: 'Scroll the page or an element in the currently connected web application',
     inputSchema: {
       type: 'object',
@@ -69,7 +69,7 @@ export const interactionTools: ToolDefinition[] = [
     },
   },
   {
-    name: 'interaction_hover',
+    name: 'webapp_interaction_hover',
     description: 'Hover over a DOM element in the live web application to trigger hover effects',
     inputSchema: {
       type: 'object',

@@ -2,7 +2,7 @@ import { ToolDefinition } from '../types.js';
 
 export const captureTools: ToolDefinition[] = [
   {
-    name: 'capture_screenshot',
+    name: 'webapp_capture_screenshot',
     description: 'Take a screenshot of the connected web app. Can capture either the visible viewport or the entire page including content below the fold.',
     inputSchema: {
       type: 'object',
@@ -26,7 +26,7 @@ export const captureTools: ToolDefinition[] = [
     },
   },
   {
-    name: 'capture_element_screenshot',
+    name: 'webapp_capture_element_screenshot',
     description: 'Take a screenshot of a specific element in the running web application',
     inputSchema: {
       type: 'object',

@@ -160,32 +160,41 @@ Add to your Zed assistant panel settings:
 
 ## Available Tools
 
+All tools are prefixed with `webapp_` to prevent naming conflicts with other MCP servers.
+
 ### DOM Inspection
-- `dom_query` - Find elements using CSS selectors
-- `dom_get_properties` - Get element properties and attributes
-- `dom_get_text` - Extract text content
-- `dom_get_html` - Get HTML structure
-- `dom_manipulate` - Modify DOM elements (setAttribute, addClass, etc.)
+- `webapp_dom_query` - Find elements using CSS selectors
+- `webapp_dom_get_properties` - Get element properties and attributes
+- `webapp_dom_get_text` - Extract text content
+- `webapp_dom_get_html` - Get HTML structure
+- `webapp_dom_manipulate` - Modify DOM elements (setAttribute, addClass, etc.)
 
 ### User Interactions
-- `interaction_click` - Click on elements
-- `interaction_type` - Type text into inputs
-- `interaction_scroll` - Scroll page or elements
-- `interaction_hover` - Hover over elements
+- `webapp_interaction_click` - Click on elements
+- `webapp_interaction_type` - Type text into inputs
+- `webapp_interaction_scroll` - Scroll page or elements
+- `webapp_interaction_hover` - Hover over elements
 
 ### Visual Capture
-- `capture_screenshot` - Take full page screenshots
-- `capture_element_screenshot` - Capture specific elements
+- `webapp_capture_screenshot` - Take full page screenshots
+- `webapp_capture_element_screenshot` - Capture specific elements
 
 ### State Management
-- `state_get_variable` - Access JavaScript variables
-- `state_local_storage` - Read/write local storage
-- `console_get_logs` - Retrieve console logs
+- `webapp_state_get_variable` - Access JavaScript variables
+- `webapp_state_local_storage` - Read/write local storage
+- `webapp_console_get_logs` - Retrieve browser console logs
+- `webapp_console_save_to_file` - Save browser logs to file
+
+### Server-Side Tools
+- `webapp_console_get_server_logs` - Retrieve Node.js server logs
+- `webapp_server_execute_js` - Execute JavaScript on the server (sandboxed)
+- `webapp_server_get_system_info` - Get process and system information
+- `webapp_server_get_env` - Inspect environment variables (masked)
 
 ### Diagnostic Tools
 - `webapp_list_clients` - List connected browser clients
-- `javascript_inject` - Execute JavaScript code in the browser
-- `execute_javascript` - Execute JavaScript with async support
+- `webapp_javascript_inject` - Execute JavaScript code in the browser
+- `webapp_execute_javascript` - Execute JavaScript with async support
 
 ## Terminology Guide
 
@@ -253,16 +262,19 @@ webappMCP({
   // Server-side console log capture
   captureServerLogs: true,     // Enable/disable all server log capture (default: true)
   serverLogLimit: 1000,         // Maximum logs to keep in memory (default: 1000)
-  
+
+  // Winston logger (RECOMMENDED: pass your logger directly)
+  winstonLogger: logger,       // Optional Winston logger instance for direct integration
+
   // Granular log capture configuration
   logCapture: {
-    console: true,    // Capture console.log/warn/error/info (default: true)
-    streams: true,    // Capture stdout/stderr streams (default: true)
+    console: false,   // Capture console.log/warn/error/info (disable if using Winston)
+    streams: false,   // Capture stdout/stderr streams (disable if using Winston)
     winston: true,    // Capture Winston logs via transport (default: true)
-    bunyan: true,     // Capture Bunyan logs (default: true)
-    pino: true,       // Capture Pino logs (default: true)
-    debug: true,      // Capture debug library logs (default: true)
-    log4js: true      // Capture log4js logs (default: true)
+    bunyan: false,    // Capture Bunyan logs (default: true)
+    pino: false,      // Capture Pino logs (default: true)
+    debug: false,     // Capture debug library logs (default: true)
+    log4js: false     // Capture log4js logs (default: true)
   }
 });
 ```
@@ -274,48 +286,68 @@ WebApp MCP can capture server-side console logs and logging library output, maki
 #### Features
 
 - **Multi-layer capture**: Intercepts logs at library, console, and stream levels
-- **Winston support**: Automatically adds transport to Winston loggers
+- **Winston support**: Direct integration via manual configuration (recommended)
 - **Circular buffer**: Keeps only the most recent logs (configurable limit)
 - **Selective capture**: Choose which log sources to capture
 - **Performance-friendly**: Disable specific interceptors for better performance
 
-#### Configuration Examples
+#### Winston Integration (Recommended)
+
+The best way to capture Winston logs is to pass your logger directly:
 
 ```javascript
-// Capture everything (default)
-app.use(webappMCP({
-  captureServerLogs: true
-}));
+const winston = require('winston');
 
-// Console only (lightweight)
-app.use(webappMCP({
+// Create Winston logger
+const logger = winston.createLogger({
+  level: 'info',
+  transports: [new winston.transports.Console()]
+});
+
+// Pass it to the middleware
+const mcpMiddleware = app.use(webappMCP({
+  winstonLogger: logger,  // Direct integration (recommended!)
+  captureServerLogs: true,
   logCapture: {
-    console: true,
-    streams: false,
-    winston: false,
-    bunyan: false,
-    pino: false,
-    debug: false,
-    log4js: false
+    console: false,  // Disable console capture
+    winston: true    // Winston capture via winstonLogger param
   }
 }));
 
-// Winston-specific capture
+// Alternative: Attach logger after setup (if created elsewhere)
+// mcpMiddleware.attachWinston(logger);
+```
+
+#### Configuration Examples
+
+```javascript
+// Winston-only capture (recommended for production)
+const logger = winston.createLogger({ /* ... */ });
+
 app.use(webappMCP({
+  winstonLogger: logger,
+  captureServerLogs: true,
   logCapture: {
     console: false,
+    streams: false,
     winston: true
   }
 }));
 
-// Disable Winston if it conflicts
+// Console only (lightweight, development)
 app.use(webappMCP({
+  captureServerLogs: true,
   logCapture: {
     console: true,
-    streams: true,
-    winston: false  // Disable Winston interception
+    streams: false,
+    winston: false
   }
 }));
+
+// Attach Winston from separate module
+const mcpMiddleware = app.use(webappMCP({ captureServerLogs: true }));
+const logger = require('./config/logger');
+mcpMiddleware.attachWinston(logger);  // Attach after the fact
 ```
 
 ## Examples

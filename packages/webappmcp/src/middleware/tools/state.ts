@@ -2,7 +2,7 @@ import { ToolDefinition } from '../types.js';
 
 export const stateTools: ToolDefinition[] = [
   {
-    name: 'state_get_variable',
+    name: 'webapp_state_get_variable',
     description: 'Get the current value of a JavaScript variable from the live web application context',
     inputSchema: {
       type: 'object',
@@ -16,7 +16,7 @@ export const stateTools: ToolDefinition[] = [
     },
   },
   {
-    name: 'state_local_storage',
+    name: 'webapp_state_local_storage',
     description: 'Read or write to the localStorage of the currently connected web application',
     inputSchema: {
       type: 'object',
@@ -39,7 +39,7 @@ export const stateTools: ToolDefinition[] = [
     },
   },
   {
-    name: 'console_get_logs',
+    name: 'webapp_console_get_logs',
     description: 'Retrieve real-time console logs from the running web application',
     inputSchema: {
       type: 'object',
@@ -63,7 +63,7 @@ export const stateTools: ToolDefinition[] = [
     },
   },
   {
-    name: 'console_save_to_file',
+    name: 'webapp_console_save_to_file',
     description: 'Save browser console logs to a file in the .webappmcp directory for large log analysis',
     inputSchema: {
       type: 'object',
@@ -96,7 +96,7 @@ export const stateTools: ToolDefinition[] = [
     },
   },
   {
-    name: 'console_get_server_logs',
+    name: 'webapp_console_get_server_logs',
     description: 'Retrieve console logs from the Node.js Express server',
     inputSchema: {
       type: 'object',
@@ -120,7 +120,7 @@ export const stateTools: ToolDefinition[] = [
     },
   },
   {
-    name: 'server_execute_js',
+    name: 'webapp_server_execute_js',
     description: 'Execute JavaScript code on the Node.js server (disabled in production)',
     inputSchema: {
       type: 'object',
@@ -139,7 +139,7 @@ export const stateTools: ToolDefinition[] = [
     },
   },
   {
-    name: 'server_get_system_info',
+    name: 'webapp_server_get_system_info',
     description: 'Get server process and system information',
     inputSchema: {
       type: 'object',
@@ -147,7 +147,7 @@ export const stateTools: ToolDefinition[] = [
     },
   },
   {
-    name: 'server_get_env',
+    name: 'webapp_server_get_env',
     description: 'Get filtered environment variables (sensitive values masked)',
     inputSchema: {
       type: 'object',

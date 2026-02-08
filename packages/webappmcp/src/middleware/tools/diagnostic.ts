@@ -2,7 +2,7 @@ import { ToolDefinition } from '../types.js';
 
 export const diagnosticTools: ToolDefinition[] = [
   {
-    name: 'dom_manipulate',
+    name: 'webapp_dom_manipulate',
     description: 'Manipulate DOM elements for diagnostic purposes',
     inputSchema: {
       type: 'object',
@@ -32,7 +32,7 @@ export const diagnosticTools: ToolDefinition[] = [
     }
   },
   {
-    name: 'javascript_inject',
+    name: 'webapp_javascript_inject',
     description: 'Execute JavaScript code in the browser for diagnostic purposes',
     inputSchema: {
       type: 'object',
@@ -47,14 +47,6 @@ export const diagnosticTools: ToolDefinition[] = [
         }
       },
       required: ['code']
-    }
-  },
-  {
-    name: 'webapp_list_clients',
-    description: 'List all connected WebApp MCP clients',
-    inputSchema: {
-      type: 'object',
-      properties: {}
     }
   }
 ];

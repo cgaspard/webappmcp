@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.3.0] - 2026-02-08
+
+### Breaking Changes
+- **All MCP tool names now prefixed with `webapp_`** to prevent naming conflicts with other MCP servers
+  - `dom_query` → `webapp_dom_query`
+  - `interaction_click` → `webapp_interaction_click`
+  - `capture_screenshot` → `webapp_capture_screenshot`
+  - And all other tools (see documentation for complete list)
+- **Removed duplicate `webapp_list_clients` tool** from diagnostic tools (now only in state tools)
+
+### Added
+- **Manual Winston configuration** (recommended approach):
+  - New `winstonLogger` configuration parameter to pass Winston logger directly
+  - New `middleware.attachWinston(logger)` method for attaching Winston logger after middleware setup
+  - Support for Winston loggers created in separate modules
+  - Better control over Winston log capture timing
+- Complete documentation for Winston integration patterns
+- Example code showing separate logger module pattern
+- `README-ATTACH-WINSTON.md` with comprehensive Winston usage guide
+
+### Changed
+- Winston integration now uses explicit configuration instead of automatic detection
+- Updated all documentation (CLAUDE.md, README.md) to reflect new tool names
+- Improved Winston transport attachment reliability
+- Updated example applications to show recommended Winston pattern
+
+### Fixed
+- Winston logger timing issues when created after middleware setup
+- Tool name conflicts that could occur with other MCP servers
+- Duplicate tool registration issue
+
+### Migration Guide
+If upgrading from 0.2.x:
+1. Update all tool names to include `webapp_` prefix in your code
+2. Update Winston configuration to use recommended pattern:
+   ```javascript
+   const logger = winston.createLogger({ /* ... */ });
+   app.use(webappMCP({ winstonLogger: logger }));
+   ```
+3. Or use `attachWinston()` if logger is in separate module:
+   ```javascript
+   const mcpMiddleware = app.use(webappMCP({ /* ... */ }));
+   mcpMiddleware.attachWinston(logger);
+   ```
+
 ## [0.2.3] - 2025-08-27
 
 ### Added

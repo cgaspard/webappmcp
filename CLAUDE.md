@@ -69,25 +69,35 @@ webappmcp/
 
 ### Available MCP Tools
 
-#### Browser-Side Tools
-1. **dom_query** - Find elements using CSS selectors
-2. **dom_get_properties** - Get element properties and attributes
-3. **dom_get_text** - Extract text content
-4. **dom_get_html** - Get HTML structure
-5. **interaction_click** - Click on elements
-6. **interaction_type** - Type text into inputs
-7. **interaction_scroll** - Scroll page or elements
-8. **capture_screenshot** - Take full page screenshots
-9. **capture_element_screenshot** - Capture specific elements
-10. **state_get_variable** - Access JavaScript variables
-11. **state_local_storage** - Read/write local storage
-12. **console_get_logs** - Retrieve browser console logs
+All tools are prefixed with `webapp_` to prevent naming conflicts with other MCP servers.
 
-#### Server-Side Tools (NEW)
-13. **console_get_server_logs** - Retrieve Node.js server console logs with filtering
-14. **server_execute_js** - Execute JavaScript code on the server (sandboxed)
-15. **server_get_system_info** - Get process, memory, CPU, and OS information
-16. **server_get_env** - Inspect environment variables (with sensitive data masking)
+#### Browser-Side Tools
+1. **webapp_dom_query** - Find elements using CSS selectors
+2. **webapp_dom_get_properties** - Get element properties and attributes
+3. **webapp_dom_get_text** - Extract text content
+4. **webapp_dom_get_html** - Get HTML structure
+5. **webapp_interaction_click** - Click on elements
+6. **webapp_interaction_type** - Type text into inputs
+7. **webapp_interaction_scroll** - Scroll page or elements
+8. **webapp_interaction_hover** - Hover over elements
+9. **webapp_capture_screenshot** - Take full page screenshots
+10. **webapp_capture_element_screenshot** - Capture specific elements
+11. **webapp_state_get_variable** - Access JavaScript variables
+12. **webapp_state_local_storage** - Read/write local storage
+13. **webapp_console_get_logs** - Retrieve browser console logs
+14. **webapp_console_save_to_file** - Save browser logs to file
+
+#### Server-Side Tools
+15. **webapp_console_get_server_logs** - Retrieve Node.js server console logs with filtering
+16. **webapp_server_execute_js** - Execute JavaScript code on the server (sandboxed)
+17. **webapp_server_get_system_info** - Get process, memory, CPU, and OS information
+18. **webapp_server_get_env** - Inspect environment variables (with sensitive data masking)
+19. **webapp_list_clients** - List all connected browser clients
+20. **webapp_execute_javascript** - Execute JavaScript in the browser
+
+#### Diagnostic Tools
+21. **webapp_dom_manipulate** - Manipulate DOM elements for debugging
+22. **webapp_javascript_inject** - Inject JavaScript code for diagnostics
 
 ### Security Considerations
 
@@ -134,10 +144,37 @@ The middleware includes a sophisticated multi-layer log capture system that inte
 ```
 
 #### Winston Integration Details
-- **Automatic Transport Addition**: Detects Winston and adds WebAppMCPTransport
-- **Logger Creation Interception**: Hooks winston.createLogger to add transport to new loggers
+
+**Recommended Approach: Manual Configuration**
+The best way to integrate Winston is to pass your logger directly to the middleware:
+
+```javascript
+const winston = require('winston');
+const logger = winston.createLogger({ /* config */ });
+
+app.use(webappMCP({
+  winstonLogger: logger,  // Pass logger directly (recommended!)
+  captureServerLogs: true,
+  logCapture: { winston: true }
+}));
+```
+
+**Alternative: Attach After Setup**
+If your logger is created in a separate module, you can attach it after middleware initialization:
+
+```javascript
+const mcpMiddleware = app.use(webappMCP({ captureServerLogs: true }));
+
+// Later, from any module
+const logger = require('./config/logger');
+mcpMiddleware.attachWinston(logger);  // Attach after the fact
+```
+
+**Features:**
+- **Manual Transport Addition**: Explicitly add WebAppMCPTransport to your Winston logger
 - **File Transport Support**: Captures logs even when Winston writes to files
 - **Metadata Preservation**: Maintains Winston's log metadata and context
+- **Flexible Timing**: Can attach logger before or after middleware setup
 
 #### Performance Considerations
 - **Selective Interception**: Can disable specific interceptors to reduce overhead
@@ -150,20 +187,28 @@ The middleware includes a sophisticated multi-layer log capture system that inte
 Users will configure the middleware with:
 ```javascript
 import { webappMCP } from '@cgaspard/webappmcp';
+import winston from 'winston';
 
-app.use(webappMCP({
+// Create Winston logger (optional but recommended)
+const logger = winston.createLogger({
+  level: 'info',
+  transports: [new winston.transports.Console()]
+});
+
+// Configure middleware
+const mcpMiddleware = app.use(webappMCP({
   // WebSocket configuration
   wsPort: 4835,
-  
+
   // Security settings
   authentication: {
     enabled: true,
     token: process.env.MCP_AUTH_TOKEN
   },
-  
+
   // Transport mode
   transport: 'sse', // 'sse', 'stdio', 'socket', or 'none'
-  
+
   // Allowed operations
   permissions: {
     read: true,
@@ -171,23 +216,29 @@ app.use(webappMCP({
     screenshot: true,
     serverExec: false  // Allow server-side JS execution (disabled in production)
   },
-  
+
   // Server-side features
   captureServerLogs: true,  // Enable server console log capture
   serverLogLimit: 1000,     // Max server logs to store
   serverTools: false,       // Enable server-side tools (disabled in production)
-  
+
+  // Winston logger (RECOMMENDED: pass your logger directly)
+  winstonLogger: logger,    // Direct Winston integration
+
   // Granular log capture control (all default to true)
   logCapture: {
-    console: true,    // Console methods
-    streams: true,    // stdout/stderr
-    winston: true,    // Winston transport
-    bunyan: true,     // Bunyan hooks
-    pino: true,       // Pino transport
-    debug: true,      // Debug library
-    log4js: true      // log4js appender
+    console: false,   // Console methods (disable if using Winston)
+    streams: false,   // stdout/stderr (disable if using Winston)
+    winston: true,    // Winston transport (enabled with winstonLogger param)
+    bunyan: false,    // Bunyan hooks
+    pino: false,      // Pino transport
+    debug: false,     // Debug library
+    log4js: false     // log4js appender
   }
 }));
+
+// Alternative: Attach Winston logger after setup (if created elsewhere)
+// mcpMiddleware.attachWinston(logger);
 ```
 
 Frontend integration:
