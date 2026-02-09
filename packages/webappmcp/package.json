@@ -1,6 +1,6 @@
 {
   "name": "@cgaspard/webappmcp",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "WebApp MCP - Model Context Protocol integration for web applications with server-side debugging tools",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
