@@ -107,7 +107,7 @@ export class MCPSSEServer {
       }
       
       // Handle server-side tools
-      if (name === 'console_get_server_logs') {
+      if (name === 'webapp_console_get_server_logs') {
         if (!this.getServerLogs) {
           return {
             content: [

@@ -44,4 +44,4 @@ coverage/
 .cache/
 
 # WebApp MCP
-.webappmcp/
+.webappmcp/packages/webappmcp/.npmrc

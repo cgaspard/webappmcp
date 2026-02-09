@@ -462,7 +462,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
   // Always set up tool execution for integrated MCP servers
   executeToolFunction = async (toolName: string, args: any, clientId?: string) => {
       // Handle server-side tools first (no client connection needed)
-      if (['console_get_server_logs', 'server_execute_js', 'server_get_system_info', 'server_get_env'].includes(toolName)) {
+      if (['webapp_console_get_server_logs', 'webapp_server_execute_js', 'webapp_server_get_system_info', 'webapp_server_get_env'].includes(toolName)) {
         return new Promise((resolve, reject) => {
           // These tools are handled directly in the server-side logic below
           const timeout = setTimeout(() => {
@@ -470,7 +470,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           }, 30000);
 
           // Handle server-side tools that don't require client connection
-          if (toolName === 'console_get_server_logs') {
+          if (toolName === 'webapp_console_get_server_logs') {
             clearTimeout(timeout);
             
             const { level = 'all', limit = 100, regex } = args;
@@ -500,7 +500,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           }
           
           // Handle server_execute_js tool
-          if (toolName === 'server_execute_js') {
+          if (toolName === 'webapp_server_execute_js') {
             clearTimeout(timeout);
             
             if (!serverTools || !permissions.serverExec) {
@@ -554,7 +554,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           }
           
           // Handle server_get_system_info tool
-          if (toolName === 'server_get_system_info') {
+          if (toolName === 'webapp_server_get_system_info') {
             clearTimeout(timeout);
             
             if (!serverTools) {
@@ -598,7 +598,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           }
           
           // Handle server_get_env tool
-          if (toolName === 'server_get_env') {
+          if (toolName === 'webapp_server_get_env') {
             clearTimeout(timeout);
             
             if (!serverTools) {
@@ -688,7 +688,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
               reject(new Error(message.error));
             } else {
               // Handle screenshot tools specially - save to file
-              if (toolName === 'capture_screenshot' || toolName === 'capture_element_screenshot') {
+              if (toolName === 'webapp_capture_screenshot' || toolName === 'webapp_capture_element_screenshot') {
                 const saveScreenshot = async () => {
                   try {
                     const result = message.result;
@@ -738,7 +738,7 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
                   }
                 };
                 saveScreenshot();
-              } else if (toolName === 'console_save_to_file') {
+              } else if (toolName === 'webapp_console_save_to_file') {
                 // Handle console log save to file
                 const saveConsoleLogs = async () => {
                   try {
