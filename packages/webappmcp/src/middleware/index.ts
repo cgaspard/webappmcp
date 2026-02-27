@@ -376,28 +376,46 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           },
           executeTool: executeToolFunction || undefined,
           plugins: plugins,
-          getServerLogs: captureServerLogs ? (level?: string, limit?: number, regex?: string) => {
-            let logs = serverLogs;
-            if (level && level !== 'all') {
-              logs = logs.filter((log) => log.level === level);
+          getServerLogs: captureServerLogs ? (level?: string, limit?: number, regex?: string, offset?: number, startTime?: string, endTime?: string) => {
+            let logs = [...serverLogs];
+
+            // 1. Time filtering
+            if (startTime) {
+              const start = new Date(startTime).getTime();
+              logs = logs.filter((l) => new Date(l.timestamp).getTime() >= start);
             }
-            
-            // Apply regex filtering if provided
+            if (endTime) {
+              const end = new Date(endTime).getTime();
+              logs = logs.filter((l) => new Date(l.timestamp).getTime() <= end);
+            }
+
+            // 2. Level filtering
+            if (level && level !== 'all') {
+              logs = logs.filter((l) => l.level === level);
+            }
+
+            // 3. Regex filtering
             if (regex) {
               try {
                 const pattern = new RegExp(regex);
-                logs = logs.filter((log) => {
-                  // Concatenate all log arguments into a single string for matching
-                  const logMessage = log.args.join(' ');
+                logs = logs.filter((l) => {
+                  const logMessage = l.args.join(' ');
                   return pattern.test(logMessage);
                 });
               } catch (e) {
-                // Return empty array on invalid regex
-                return [];
+                return { logs: [], totalCount: 0 };
               }
             }
-            
-            return logs.slice(-(limit || 100));
+
+            // 4. Paging (newest first)
+            const totalCount = logs.length;
+            const effectiveLimit = limit || 100;
+            const effectiveOffset = offset || 0;
+            const start = Math.max(0, totalCount - effectiveOffset - effectiveLimit);
+            const end = Math.max(0, totalCount - effectiveOffset);
+            const page = logs.slice(start, end).reverse();
+
+            return { logs: page, totalCount };
           } : undefined,
         });
 
@@ -472,21 +490,31 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
           // Handle server-side tools that don't require client connection
           if (toolName === 'webapp_console_get_server_logs') {
             clearTimeout(timeout);
-            
-            const { level = 'all', limit = 100, regex } = args;
-            let logs = serverLogs;
-            
-            if (level !== 'all') {
-              logs = logs.filter((log) => log.level === level);
+
+            const { level = 'all', limit = 100, regex, offset = 0, startTime, endTime } = args;
+            let logs = [...serverLogs];
+
+            // 1. Time filtering
+            if (startTime) {
+              const startMs = new Date(startTime).getTime();
+              logs = logs.filter((l) => new Date(l.timestamp).getTime() >= startMs);
             }
-            
-            // Apply regex filtering if provided
+            if (endTime) {
+              const endMs = new Date(endTime).getTime();
+              logs = logs.filter((l) => new Date(l.timestamp).getTime() <= endMs);
+            }
+
+            // 2. Level filtering
+            if (level !== 'all') {
+              logs = logs.filter((l) => l.level === level);
+            }
+
+            // 3. Regex filtering
             if (regex) {
               try {
                 const pattern = new RegExp(regex);
-                logs = logs.filter((log) => {
-                  // Concatenate all log arguments into a single string for matching
-                  const logMessage = log.args.join(' ');
+                logs = logs.filter((l) => {
+                  const logMessage = l.args.join(' ');
                   return pattern.test(logMessage);
                 });
               } catch (e) {
@@ -494,8 +522,14 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
                 return;
               }
             }
-            
-            resolve({ logs: logs.slice(-limit) });
+
+            // 4. Paging (newest first)
+            const totalCount = logs.length;
+            const startIdx = Math.max(0, totalCount - offset - limit);
+            const endIdx = Math.max(0, totalCount - offset);
+            const page = logs.slice(startIdx, endIdx).reverse();
+
+            resolve({ logs: page, totalCount });
             return;
           }
           
@@ -905,14 +939,46 @@ export function webappMCP(config: WebAppMCPConfig = {}) {
 
     // Get server logs endpoint
     if (req.path === '/__webappmcp/server-logs' && req.method === 'GET') {
-      const { level = 'all', limit = 100 } = req.query;
-      let logs = serverLogs;
-      
-      if (level !== 'all') {
-        logs = logs.filter((log) => log.level === level);
+      const { level = 'all', limit = 100, regex, offset = 0, startTime, endTime } = req.query;
+      let logs = [...serverLogs];
+
+      // 1. Time filtering
+      if (startTime) {
+        const startMs = new Date(startTime as string).getTime();
+        logs = logs.filter((l) => new Date(l.timestamp).getTime() >= startMs);
       }
-      
-      return res.json({ logs: logs.slice(-Number(limit)) });
+      if (endTime) {
+        const endMs = new Date(endTime as string).getTime();
+        logs = logs.filter((l) => new Date(l.timestamp).getTime() <= endMs);
+      }
+
+      // 2. Level filtering
+      if (level !== 'all') {
+        logs = logs.filter((l) => l.level === level);
+      }
+
+      // 3. Regex filtering
+      if (regex) {
+        try {
+          const pattern = new RegExp(regex as string);
+          logs = logs.filter((l) => {
+            const logMessage = l.args.join(' ');
+            return pattern.test(logMessage);
+          });
+        } catch (e) {
+          return res.json({ logs: [], totalCount: 0 });
+        }
+      }
+
+      // 4. Paging (newest first)
+      const totalCount = logs.length;
+      const effectiveLimit = Number(limit);
+      const effectiveOffset = Number(offset);
+      const startIdx = Math.max(0, totalCount - effectiveOffset - effectiveLimit);
+      const endIdx = Math.max(0, totalCount - effectiveOffset);
+      const page = logs.slice(startIdx, endIdx).reverse();
+
+      return res.json({ logs: page, totalCount });
     }
     
     // List available tools

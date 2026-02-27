@@ -13,7 +13,7 @@ export interface MCPSSEConfig {
   executeTool?: (toolName: string, args: any) => Promise<any>;
   debug?: boolean;
   plugins?: WebAppMCPPlugin[];
-  getServerLogs?: (level?: string, limit?: number, regex?: string) => any[];
+  getServerLogs?: (level?: string, limit?: number, regex?: string, offset?: number, startTime?: string, endTime?: string) => { logs: any[]; totalCount: number };
 }
 
 export class MCPSSEServer {
@@ -22,7 +22,7 @@ export class MCPSSEServer {
   private executeTool?: (toolName: string, args: any) => Promise<any>;
   private debug: boolean;
   private plugins: WebAppMCPPlugin[];
-  private getServerLogs?: (level?: string, limit?: number, regex?: string) => any[];
+  private getServerLogs?: (level?: string, limit?: number, regex?: string, offset?: number, startTime?: string, endTime?: string) => { logs: any[]; totalCount: number };
 
   constructor(config: MCPSSEConfig) {
     this.getClients = config.getClients;
@@ -119,14 +119,14 @@ export class MCPSSEServer {
           };
         }
         
-        const { level = 'all', limit = 100, regex } = args || {};
-        const logs = this.getServerLogs(level as string, limit as number, regex as string | undefined);
-        
+        const { level = 'all', limit = 100, regex, offset = 0, startTime, endTime } = args || {};
+        const result = this.getServerLogs(level as string, limit as number, regex as string | undefined, offset as number, startTime as string | undefined, endTime as string | undefined);
+
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ logs }, null, 2),
+              text: JSON.stringify(result, null, 2),
             },
           ],
         };
